@@ -25,7 +25,8 @@ import {
   Command,
   Mail,
   Crown,
-  MessageSquare
+  MessageSquare,
+  Github
 } from 'lucide-react';
 import { ThemeToggle } from './common/ThemeToggle';
 
@@ -38,6 +39,7 @@ interface NavbarProps {
   onOpenSearch?: () => void;
   onOpenMailbox?: () => void;
   onOpenChat?: () => void;
+  onOpenGitHubExport?: () => void;
   onLogout: () => void;
 }
 
@@ -50,6 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSearch,
   onOpenMailbox,
   onOpenChat,
+  onOpenGitHubExport,
   onLogout,
 }) => {
   const unreadFeedbackCount = currentUser && currentUser.role === 'student'
@@ -206,6 +209,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden md:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-amber-300/90 font-bold">
                   ⌘K
                 </span>
+              </button>
+            )}
+
+            {/* GitHub Export / Upload Button */}
+            {onOpenGitHubExport && (
+              <button
+                id="nav-github-export-btn"
+                type="button"
+                onClick={onOpenGitHubExport}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-700/80 hover:border-amber-500/40 text-slate-300 hover:text-white text-xs transition-all shadow-inner group"
+                title="นำโค้ดและข้อมูลขึ้น GitHub หรือดาวน์โหลดไฟล์ (.tar.gz)"
+              >
+                <Github className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline font-semibold">GitHub</span>
               </button>
             )}
 

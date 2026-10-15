@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 dotenv.config();
 
@@ -90,6 +91,68 @@ async function startServer() {
       return res.json({ success: true, message: 'Database saved successfully', timestamp: newDb.updated_at });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err?.message || 'Database sync error' });
+    }
+  });
+
+  // GET /api/export/download: Download compressed full project archive
+  app.get('/api/export/download', (req, res) => {
+    try {
+      const archivePath = path.resolve(__dirname, 'adventure-m1-code.tar.gz');
+      // Ensure latest committed archive is generated
+      try {
+        execSync('git archive --format=tar.gz -o adventure-m1-code.tar.gz HEAD', { cwd: __dirname });
+      } catch (archiveErr) {
+        console.warn('git archive warning:', archiveErr);
+      }
+      if (!fs.existsSync(archivePath)) {
+        return res.status(404).json({ success: false, error: 'Archive file could not be generated' });
+      }
+      res.setHeader('Content-Disposition', 'attachment; filename="adventure-m1-code.tar.gz"');
+      res.setHeader('Content-Type', 'application/gzip');
+      return res.sendFile(archivePath);
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Download error' });
+    }
+  });
+
+  // POST /api/github/push: Push project repository to user's GitHub
+  app.post('/api/github/push', (req, res) => {
+    try {
+      const { repoUrl, token, branch = 'main' } = req.body || {};
+      if (!repoUrl) {
+        return res.status(400).json({ success: false, error: 'กรุณาระบุ URL ของ GitHub Repository' });
+      }
+
+      let authenticatedUrl = repoUrl.trim();
+      if (token && token.trim()) {
+        const cleanToken = token.trim();
+        let stripped = authenticatedUrl.replace(/^https?:\/\//, '');
+        if (stripped.includes('@')) {
+          stripped = stripped.split('@')[1];
+        }
+        authenticatedUrl = `https://${cleanToken}@${stripped}`;
+      }
+
+      // Commit any uncommitted changes first
+      try {
+        execSync('git add .', { cwd: __dirname });
+        execSync('git commit -m "update: Latest project code and features"', { cwd: __dirname });
+      } catch {}
+
+      try {
+        execSync('git remote remove origin', { cwd: __dirname, stdio: 'ignore' });
+      } catch {}
+
+      execSync(`git remote add origin ${authenticatedUrl}`, { cwd: __dirname });
+      execSync(`git push -u origin ${branch} --force`, { cwd: __dirname, timeout: 30000 });
+
+      return res.json({ success: true, message: `อัปโหลดโค้ดทั้งหมดขึ้น GitHub (${branch}) สำเร็จเรียบร้อย!` });
+    } catch (err: any) {
+      const errorMsg = err?.stderr?.toString() || err?.message || 'Git push error';
+      return res.status(500).json({
+        success: false,
+        error: `ไม่สามารถ Push ขึ้น GitHub ได้: ${errorMsg}. กรุณาตรวจสอบว่าใส่ Personal Access Token (PAT) ที่มีสิทธิ์ repo หรือใส่ URL ถูกต้องหรือไม่`,
+      });
     }
   });
 

@@ -20,6 +20,7 @@ import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { StudentMailboxModal } from './components/StudentMailboxModal';
 import { StudentTeacherChatModal } from './components/StudentTeacherChatModal';
 import { ActionFeedbackToast } from './components/common/ActionFeedbackToast';
+import { GitHubExportModal } from './components/common/GitHubExportModal';
 import {
   Compass,
   MapPin,
@@ -49,6 +50,7 @@ export default function App() {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isMailboxOpen, setIsMailboxOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedLessonTab, setSelectedLessonTab] = useState<
@@ -162,6 +164,7 @@ export default function App() {
         onOpenSearch={() => setIsGlobalSearchOpen(true)}
         onOpenMailbox={() => setIsMailboxOpen(true)}
         onOpenChat={() => setIsChatOpen(true)}
+        onOpenGitHubExport={() => setIsGitHubModalOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -342,6 +345,12 @@ export default function App() {
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         currentUser={currentUser}
+      />
+
+      {/* GitHub Export & Code Download Modal */}
+      <GitHubExportModal
+        isOpen={isGitHubModalOpen}
+        onClose={() => setIsGitHubModalOpen(false)}
       />
 
       {/* Global Interactive Action Feedback (Sound, Haptic, Visual Toasts for Add, Save, Edit, Delete) */}
