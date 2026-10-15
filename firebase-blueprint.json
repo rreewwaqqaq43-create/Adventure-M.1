@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile in the computational science learning platform",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["student", "teacher", "admin"] },
+        "avatarUrl": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "studentProfile": {
+      "title": "StudentProfile",
+      "description": "Gamification profile, XP, streak, and badges for students",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "xp": { "type": "integer" },
+        "level": { "type": "integer" },
+        "streak": { "type": "integer" },
+        "coins": { "type": "integer" },
+        "title": { "type": "string", "maxLength": 200 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "xp", "level"]
+    },
+    "quizAttempt": {
+      "title": "QuizAttempt",
+      "description": "Quiz completion results and scores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "quizId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "score": { "type": "integer" },
+        "maxScore": { "type": "integer" },
+        "passed": { "type": "boolean" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "quizId", "userId", "score", "maxScore"]
+    },
+    "worksheetSubmission": {
+      "title": "WorksheetSubmission",
+      "description": "Student submitted answers for chapter worksheets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "worksheetId": { "type": "string", "maxLength": 128 },
+        "chapterNumber": { "type": "integer" },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["pending", "graded", "returned"] },
+        "score": { "type": "integer" },
+        "maxScore": { "type": "integer" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "worksheetId", "studentId", "status", "submittedAt"]
+    },
+    "teacherFeedback": {
+      "title": "TeacherFeedback",
+      "description": "Teacher feedback and grading note for students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "chapterNumber": { "type": "integer" },
+        "score": { "type": "integer" },
+        "maxScore": { "type": "integer" },
+        "message": { "type": "string", "maxLength": 2000 },
+        "teacherName": { "type": "string", "maxLength": 200 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "studentId", "message", "createdAt"]
+    },
+    "video": {
+      "title": "YouTubeVideo",
+      "description": "Educational YouTube video with chapter, ordering, and metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "chapterNumber": { "type": "integer" },
+        "title": { "type": "string", "maxLength": 300 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "youtubeId": { "type": "string", "maxLength": 64 },
+        "duration": { "type": "string", "maxLength": 50 },
+        "order": { "type": "integer" },
+        "isFeatured": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "chapterNumber", "title", "youtubeId"]
+    },
+    "stageLock": {
+      "title": "StageLock",
+      "description": "Teacher locked chapters and access rules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "lockedChapters": { "type": "array", "items": { "type": "integer" } },
+        "teacherPin": { "type": "string", "maxLength": 32 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "lockedChapters"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/user" },
+      "description": "User profiles collection"
+    },
+    "/studentProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/studentProfile" },
+      "description": "Student gamification stats"
+    },
+    "/quizAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/quizAttempt" },
+      "description": "Quiz attempt records"
+    },
+    "/worksheetSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/worksheetSubmission" },
+      "description": "Worksheet submissions for grading"
+    },
+    "/teacherFeedbacks/{feedbackId}": {
+      "schema": { "$ref": "#/entities/teacherFeedback" },
+      "description": "Feedback messages from teachers"
+    },
+    "/videos/{videoId}": {
+      "schema": { "$ref": "#/entities/video" },
+      "description": "Persistent educational videos list"
+    },
+    "/stageLocks/{lockId}": {
+      "schema": { "$ref": "#/entities/stageLock" },
+      "description": "Stage lock settings for classrooms"
+    }
+  }
+}

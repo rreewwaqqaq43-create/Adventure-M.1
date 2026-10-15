@@ -1,0 +1,6 @@
+{
+  "name": "Adventure M.1",
+  "description": "ผจญภัย สนุกคิด พิชิตวิทยาการคำนวณ - สื่อการเรียนรู้แบบเกมมิฟิเคชัน ม.1 สสวท.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
