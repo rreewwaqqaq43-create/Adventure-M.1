@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { StorageService, QuizAttemptRecord } from '../../services/storage';
 import { QuestionMistakeStat, User } from '../../types';
+import { feedback } from '../../utils/feedback';
 import {
   AlertTriangle,
   HelpCircle,
@@ -19,7 +20,9 @@ import {
   TrendingDown,
   Info,
   ChevronRight,
-  Eye
+  Eye,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface TeacherMistakeAnalyticsProps {
@@ -130,7 +133,7 @@ export const TeacherMistakeAnalytics: React.FC<TeacherMistakeAnalyticsProps> = (
           >
             ทุกบทเรียน
           </button>
-          {[1, 2, 3, 4, 5, 6].map((ch) => (
+          {[1, 2, 3, 4, 5, 6, 7].map((ch) => (
             <button
               key={ch}
               onClick={() => setSelectedChapter(ch)}
@@ -140,13 +143,13 @@ export const TeacherMistakeAnalytics: React.FC<TeacherMistakeAnalyticsProps> = (
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              บทที่ {ch}
+              {ch === 7 ? 'บทที่ 7 (สอบรวม)' : `บทที่ ${ch}`}
             </button>
           ))}
         </div>
 
-        {/* Type filter & search */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
+        {/* Type filter & search & Export */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
             <button
               onClick={() => setSelectedType('all')}
@@ -180,7 +183,7 @@ export const TeacherMistakeAnalytics: React.FC<TeacherMistakeAnalyticsProps> = (
             </button>
           </div>
 
-          <div className="relative flex-1 md:w-56">
+          <div className="relative flex-1 md:w-48">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -190,6 +193,19 @@ export const TeacherMistakeAnalytics: React.FC<TeacherMistakeAnalyticsProps> = (
               className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500"
             />
           </div>
+
+          {/* Export Mistake Data button */}
+          <button
+            onClick={() => {
+              StorageService.exportMistakesAsCsv();
+              feedback.save('ส่งออกรายงานข้อผิดพลาด CSV สำเร็จ', 'mistake_analytics_report.csv');
+            }}
+            title="ดาวน์โหลดรายงานสรุปข้อที่นักเรียนตอบผิดบ่อยเป็นไฟล์ CSV / Excel"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all shrink-0"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-400" />
+            <span>ส่งออก CSV</span>
+          </button>
         </div>
       </div>
 

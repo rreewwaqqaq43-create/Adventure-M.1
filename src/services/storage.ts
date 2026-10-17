@@ -2617,6 +2617,259 @@ const INITIAL_QUIZ_ATTEMPTS: QuizAttemptRecord[] = [
       },
     ],
   },
+  // Chapter 3: Python Attempts
+  {
+    id: 'att-ch3-1',
+    quizId: 'quiz-3-pre',
+    chapterNumber: 3,
+    quizType: 'pre_test',
+    userId: 'student-1',
+    userName: 'เด็กชายปภพ สุขใจ',
+    score: 3,
+    maxScore: 5,
+    completedAt: '2026-05-19T09:30:00.000Z',
+    answers: [
+      {
+        questionId: 'q-3-pre-1',
+        questionText: 'คำสั่งใดใน Python ใช้แสดงผลลัพธ์ออกทางหน้าจอ?',
+        selectedOption: 0,
+        selectedText: 'print()',
+        correctOption: 0,
+        correctText: 'print()',
+        isCorrect: true,
+        explanation: 'print() คือคำสั่งมาตรฐานในการแสดงผลข้อความและค่าตัวแปรออกทางหน้าจอ',
+        textbookReference: 'สสวท. ม.1 หน้า 54',
+      },
+      {
+        questionId: 'q-3-pre-2',
+        questionText: 'หาก x = 10 และ y = 3 ผลลัพธ์ของ x // y ในไพทอนมีค่าเท่าใด?',
+        selectedOption: 2,
+        selectedText: '3.33',
+        correctOption: 0,
+        correctText: '3 (การหารปัดเศษทิ้ง)',
+        isCorrect: false,
+        explanation: 'เครื่องหมาย // ในภาษาไพทอนคือ Floor Division หรือการหารปัดเศษทิ้ง',
+        textbookReference: 'สสวท. ม.1 หน้า 60',
+      },
+      {
+        questionId: 'q-3-pre-3',
+        questionText: 'ชนิดข้อมูล (Data Type) ใดใช้เก็บข้อความ เช่น "Hello World"?',
+        selectedOption: 1,
+        selectedText: 'str (String)',
+        correctOption: 1,
+        correctText: 'str (String)',
+        isCorrect: true,
+        explanation: 'str คือประเภทข้อมูลข้อความหรือสตริงในภาษา Python',
+        textbookReference: 'สสวท. ม.1 หน้า 58',
+      },
+      {
+        questionId: 'q-3-pre-4',
+        questionText: 'คำสั่งวนซ้ำ for i in range(5): ตัวแปร i จะมีค่าตั้งแต่เท่าใดถึงเท่าใด?',
+        selectedOption: 0,
+        selectedText: '1 ถึง 5',
+        correctOption: 1,
+        correctText: '0 ถึง 4 (รวม 5 รอบ)',
+        isCorrect: false,
+        explanation: 'range(5) เริ่มต้นนับที่ 0 และสิ้นสุดที่ 4 รวมทั้งหมด 5 รอบ',
+        textbookReference: 'สสวท. ม.1 หน้า 72',
+      },
+      {
+        questionId: 'q-3-pre-5',
+        questionText: 'โครงสร้างแบบ if...else ใช้เพื่ออะไรในการเขียนโปรแกรม?',
+        selectedOption: 0,
+        selectedText: 'การเลือกทำตามเงื่อนไข (Conditional Selection)',
+        correctOption: 0,
+        correctText: 'การเลือกทำตามเงื่อนไข (Conditional Selection)',
+        isCorrect: true,
+        explanation: 'if...else ใช้ในการตรวจสอบเงื่อนไขเพื่อตัดสินใจเลือกทำชุดคำสั่ง',
+        textbookReference: 'สสวท. ม.1 หน้า 78',
+      },
+    ],
+  },
+  // Chapter 5: Data and Processing (ข้อมูลและการประมวลผล)
+  {
+    id: 'att-ch5-1',
+    quizId: 'quiz-5-pre',
+    chapterNumber: 5,
+    quizType: 'pre_test',
+    userId: 'student-2',
+    userName: 'เด็กหญิงมนัสนันท์ ขยันเรียน',
+    score: 3,
+    maxScore: 5,
+    completedAt: '2026-05-20T14:00:00.000Z',
+    answers: [
+      {
+        questionId: 'q-5-pre-1',
+        questionText: 'ข้อใดคือตัวอย่างของ "ข้อมูลปฐมภูมิ" (Primary Data)?',
+        selectedOption: 0,
+        selectedText: 'ข้อมูลที่ผู้เก็บรวบรวมได้มาโดยตรงจากแหล่งกำเนิด เช่น การสังเกตและสัมภาษณ์',
+        correctOption: 0,
+        correctText: 'ข้อมูลที่ผู้เก็บรวบรวมได้มาโดยตรงจากแหล่งกำเนิด เช่น การสังเกตและสัมภาษณ์',
+        isCorrect: true,
+        explanation: 'ข้อมูลปฐมภูมิคือข้อมูลที่ผู้ใช้เก็บรวบรวมด้วยตนเองจากแหล่งกำเนิดข้อมูลโดยตรง',
+        textbookReference: 'สสวท. ม.1 หน้า 140',
+      },
+      {
+        questionId: 'q-5-pre-2',
+        questionText: 'การตรวจสอบความสมบูรณ์และถูกต้องของข้อมูลก่อนประมวลผล เรียกว่าอะไร?',
+        selectedOption: 2,
+        selectedText: 'Data Compression (การบีบอัดข้อมูล)',
+        correctOption: 0,
+        correctText: 'Data Validation / Data Cleaning (การทำความสะอาดและตรวจสอบข้อมูล)',
+        isCorrect: false,
+        explanation: 'การตรวจสอบและคัดกรองข้อมูลผิดพลาดก่อนนำไปประมวลผลคือ Data Validation',
+        textbookReference: 'สสวท. ม.1 หน้า 152',
+      },
+      {
+        questionId: 'q-5-pre-3',
+        questionText: 'หากต้องการเปรียบเทียบสัดส่วนยอดขายสินค้า 4 ประเภท ควรใช้แผนภูมิชนิดใด?',
+        selectedOption: 0,
+        selectedText: 'แผนภูมิวงกลม (Pie Chart)',
+        correctOption: 0,
+        correctText: 'แผนภูมิวงกลม (Pie Chart)',
+        isCorrect: true,
+        explanation: 'แผนภูมิวงกลมเหมาะสำหรับแสดงสัดส่วนของแต่ละส่วนประกอบเทียบกับภาพรวมทั้งหมด (100%)',
+        textbookReference: 'สสวท. ม.1 หน้า 158',
+      },
+      {
+        questionId: 'q-5-pre-4',
+        questionText: 'การประเมินทางเลือกเพื่อตัดสินใจแบบมีหลักเกณฑ์ (Decision Matrix) ช่วยในเรื่องใด?',
+        selectedOption: 1,
+        selectedText: 'ช่วยให้ตัดสินใจได้เร็วโดยไม่ต้องสนใจเหตุผล',
+        correctOption: 0,
+        correctText: 'ช่วยให้การตัดสินใจมีเหตุผล โปร่งใส และลดความลำเอียงส่วนบุคคล',
+        isCorrect: false,
+        explanation: 'การสร้างตารางเกณฑ์ช่วยให้สามารถเปรียบเทียบทางเลือกได้อย่างเป็นภววิสัย',
+        textbookReference: 'สสวท. ม.1 หน้า 154',
+      },
+      {
+        questionId: 'q-5-pre-5',
+        questionText: 'การสร้างทางเลือกเพื่อตัดสินใจ (Decision Making) ควรพิจารณาจากสิ่งใด?',
+        selectedOption: 0,
+        selectedText: 'เกณฑ์ที่กำหนดอย่างชัดเจนและข้อมูลหลักฐานที่น่าเชื่อถือ',
+        correctOption: 0,
+        correctText: 'เกณฑ์ที่กำหนดอย่างชัดเจนและข้อมูลหลักฐานที่น่าเชื่อถือ',
+        isCorrect: true,
+        explanation: 'การตัดสินใจอย่างมีประสิทธิภาพต้องอาศัยเกณฑ์และข้อมูลหลักฐานที่เชื่อถือได้',
+        textbookReference: 'สสวท. ม.1 หน้า 155',
+      },
+    ],
+  },
+  // Chapter 7: Comprehensive Exam Attempts (ข้อสอบรวม 6 บท)
+  {
+    id: 'att-ch7-pre-1',
+    quizId: 'quiz-7-pre',
+    chapterNumber: 7,
+    quizType: 'pre_test',
+    userId: 'student-1',
+    userName: 'เด็กชายปภพ สุขใจ',
+    score: 20,
+    maxScore: 30,
+    completedAt: '2026-05-22T08:30:00.000Z',
+    answers: [
+      {
+        questionId: 'q-7-pre-1',
+        questionText: '(บทที่ 1) ข้อใดคือหัวใจสำคัญของ "แนวคิดเชิงนามธรรม" (Abstraction)?',
+        selectedOption: 0,
+        selectedText: 'การคัดแยกคุณลักษณะที่สำคัญจำเป็นต่อการแก้ปัญหาออกจากรายละเอียดปลีกย่อย',
+        correctOption: 0,
+        correctText: 'การคัดแยกคุณลักษณะที่สำคัญจำเป็นต่อการแก้ปัญหาออกจากรายละเอียดปลีกย่อย',
+        isCorrect: true,
+        explanation: 'แนวคิดเชิงนามธรรมมุ่งเน้นการคัดกรองเฉพาะข้อมูลที่จำเป็นต่อเป้าหมาย',
+        textbookReference: 'สสวท. ม.1 หน้า 4',
+      },
+      {
+        questionId: 'q-7-pre-8',
+        questionText: '(บทที่ 2) สัญลักษณ์ผังงานรูป "สี่เหลี่ยมข้าวหลามตัด" (Diamond) ใช้แทนสิ่งใด?',
+        selectedOption: 1,
+        selectedText: 'การรับข้อมูลเข้าจากแป้นพิมพ์เท่านั้น',
+        correctOption: 0,
+        correctText: 'การตัดสินใจตามเงื่อนไข (Decision) มีทิศทางจริง/เท็จ',
+        isCorrect: false,
+        explanation: 'รูปข้าวหลามตัดใช้ตรวจสอบเงื่อนไข โดยจะมีเส้นทางออกจากรูปอย่างน้อย 2 ทิศทาง',
+        textbookReference: 'สสวท. ม.1 หน้า 30',
+      },
+      {
+        questionId: 'q-7-pre-14',
+        questionText: '(บทที่ 3) คำสั่ง while ในไพทอนมีพฤติกรรมอย่างไร?',
+        selectedOption: 1,
+        selectedText: 'ทำงานเพียง 1 รอบเสมอ',
+        correctOption: 0,
+        correctText: 'ทำงานวนซ้ำตราบเท่าที่เงื่อนไขยังคงเป็นจริง (True)',
+        isCorrect: false,
+        explanation: 'while loop จะตรวจสอบเงื่อนไขก่อนเริ่มทำงานแต่ละรอบ และวนซ้ำจนกว่าเงื่อนไขจะเป็นเท็จ',
+        textbookReference: 'สสวท. ม.1 หน้า 74',
+      },
+      {
+        questionId: 'q-7-pre-21',
+        questionText: '(บทที่ 5) ข้อใดคือความแตกต่างหลักระหว่าง "ข้อมูล" (Data) กับ "สารสนเทศ" (Information)?',
+        selectedOption: 2,
+        selectedText: 'ข้อมูลเป็นสิ่งที่มีประโยชน์พร้อมใช้ทันทีกว่าสารสนเทศ',
+        correctOption: 0,
+        correctText: 'สารสนเทศคือข้อมูลที่ผ่านการประมวลผล วิเคราะห์ และจัดระเบียบจนเกิดความหมาย',
+        isCorrect: false,
+        explanation: 'ข้อมูลคือข้อเท็จจริงดิบ ส่วนสารสนเทศคือผลลัพธ์หลังการประมวลผล',
+        textbookReference: 'สสวท. ม.1 หน้า 139',
+      },
+      {
+        questionId: 'q-7-pre-28',
+        questionText: '(บทที่ 6) ข้อใดคือลักษณะสำคัญของอีเมลหลอกลวง (Phishing)?',
+        selectedOption: 0,
+        selectedText: 'การส่งลิงก์ปลอมแอบอ้างเป็นธนาคารหรือสถาบันเพื่อหลอกให้กรอกรหัสผ่าน',
+        correctOption: 0,
+        correctText: 'การส่งลิงก์ปลอมแอบอ้างเป็นธนาคารหรือสถาบันเพื่อหลอกให้กรอกรหัสผ่าน',
+        isCorrect: true,
+        explanation: 'Phishing คือกลลวงทางสังคมเพื่อขโมยข้อมูลความลับส่วนบุคคล',
+        textbookReference: 'สสวท. ม.1 หน้า 168',
+      },
+    ],
+  },
+  {
+    id: 'att-ch7-post-1',
+    quizId: 'quiz-7-post',
+    chapterNumber: 7,
+    quizType: 'post_test',
+    userId: 'student-2',
+    userName: 'เด็กหญิงมนัสนันท์ ขยันเรียน',
+    score: 28,
+    maxScore: 30,
+    completedAt: '2026-05-25T11:20:00.000Z',
+    answers: [
+      {
+        questionId: 'q-7-post-1',
+        questionText: '(บทที่ 1) การสร้างโมเดลแผนที่เฉพาะสถานีรถไฟฟ้าบีทีเอสโดยไม่แสดงบ้านเรือนทุกหลัง เป็นการประยุกต์ใช้สิ่งใด?',
+        selectedOption: 0,
+        selectedText: 'แนวคิดเชิงนามธรรม (Abstraction)',
+        correctOption: 0,
+        correctText: 'แนวคิดเชิงนามธรรม (Abstraction)',
+        isCorrect: true,
+        explanation: 'การคัดเลือกเฉพาะข้อมูลที่จำเป็นต่อการสัญจร',
+        textbookReference: 'สสวท. ม.1 หน้า 8',
+      },
+      {
+        questionId: 'q-7-post-15',
+        questionText: '(บทที่ 3) ผลลัพธ์ของ 7 % 3 ในภาษาไพทอนคือค่าใด?',
+        selectedOption: 0,
+        selectedText: '1 (เศษจากการหาร)',
+        correctOption: 0,
+        correctText: '1 (เศษจากการหาร)',
+        isCorrect: true,
+        explanation: 'เครื่องหมาย % (Modulo) ให้ผลลัพธ์เป็นเศษจากการหาร',
+        textbookReference: 'สสวท. ม.1 หน้า 61',
+      },
+      {
+        questionId: 'q-7-post-23',
+        questionText: '(บทที่ 5) ข้อใดจัดเป็นข้อผิดพลาด Garbage In, Garbage Out ในการประมวลผลข้อมูล?',
+        selectedOption: 1,
+        selectedText: 'คอมพิวเตอร์ทำงานเร็วเกินไป',
+        correctOption: 0,
+        correctText: 'หากนำข้อมูลที่ไม่ถูกต้องเข้าสู่ระบบ ผลลัพธ์จากการวิเคราะห์ย่อมผิดพลาดตามไปด้วย',
+        isCorrect: false,
+        explanation: 'หากข้อมูลต้นทางผิดพลาด แม้ขั้นตอนการประมวลผลจะถูกต้อง ผลลัพธ์ที่ได้ก็จะไม่ถูกต้อง',
+        textbookReference: 'สสวท. ม.1 หน้า 152',
+      },
+    ],
+  },
 ];
 
 
@@ -4165,6 +4418,94 @@ export const StorageService = {
     });
 
     return mistakes;
+  },
+
+  // Export Complete Application Dataset
+  exportAllData: (): Record<string, any> => {
+    return {
+      appName: 'CS Adventure M.1 Gamified Learning Platform',
+      curriculum: 'สสวท. ม.1 เทคโนโลยี (วิทยาการคำนวณ)',
+      version: '1.2.0',
+      exportedAt: new Date().toISOString(),
+      lessons: StorageService.getLessons(),
+      quizzes: StorageService.getQuizzes(),
+      questions: StorageService.getQuestions(),
+      classes: StorageService.getClasses(),
+      users: StorageService.getUsers(),
+      student_profiles: StorageService.getStudentProfiles(),
+      progress_list: StorageService.getProgressList(),
+      quiz_attempts: StorageService.getQuizAttempts(),
+      mistake_analytics: StorageService.getMistakeAnalytics(),
+      worksheets: StorageService.getWorksheets(),
+      videos: StorageService.getVideos(),
+      stage_locks: {
+        globalLockedChapters: StorageService.getGlobalLockedChapters(),
+        teacherPin: StorageService.getTeacherLockPin(),
+      },
+      badges: StorageService.getBadges(),
+      summary: {
+        totalLessons: StorageService.getLessons().length,
+        totalQuizzes: StorageService.getQuizzes().length,
+        totalQuestions: StorageService.getQuestions().length,
+        totalStudents: StorageService.getStudentProfiles().length,
+        totalClasses: StorageService.getClasses().length,
+        totalQuizAttempts: StorageService.getQuizAttempts().length,
+      },
+    };
+  },
+
+  // Download all application data as a formatted JSON file
+  downloadDataAsJsonFile: (filename = 'adventure_m1_full_data.json'): void => {
+    const data = StorageService.exportAllData();
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  // Export Mistake Analytics Data as CSV for teachers
+  exportMistakesAsCsv: (filename = 'mistake_analytics_report.csv'): void => {
+    const mistakes = StorageService.getMistakeAnalytics();
+    const headers = [
+      'บทที่',
+      'ประเภทข้อสอบ',
+      'รหัสข้อสอบ',
+      'ข้อคำถาม',
+      'จำนวนครั้งที่ตอบทั้งหมด',
+      'ตอบผิด (คน)',
+      'อัตราตอบผิด (%)',
+      'คำตอบที่ถูกต้อง',
+      'คำตอบที่เด็กมักเข้าใจผิด',
+      'อ้างอิงหนังสือ สสวท.',
+    ];
+    const rows = mistakes.map((m) => [
+      m.chapterNumber,
+      m.quizType === 'pre_test' ? 'ก่อนเรียน' : 'หลังเรียน',
+      m.questionId,
+      `"${m.questionText.replace(/"/g, '""')}"`,
+      m.totalAttempts,
+      m.wrongCount,
+      `${m.wrongPercentage}%`,
+      `"${m.correctAnswerText.replace(/"/g, '""')}"`,
+      `"${m.mostCommonWrongAnswer.replace(/"/g, '""')}"`,
+      `"${m.textbookReference.replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   },
 
   games: GameStorageService,

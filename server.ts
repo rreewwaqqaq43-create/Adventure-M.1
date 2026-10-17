@@ -59,7 +59,27 @@ function saveDbFile(data: Record<string, any>) {
 
 async function startServer() {
   const app = express();
-  const PORT = parseInt(process.env.PORT || '3000', 10);
+
+  // Resolve port:
+  // 1. Check for CLI --port flag (passed by control plane)
+  // 2. Check DEFAULT_APP_PORT or APP_PORT
+  // 3. Check PORT env (unless it's 8080, which is where Nginx runs in this container)
+  // 4. Default to 3000 (strict AI Studio requirement)
+  let PORT = 3000;
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const val = parseInt(process.argv[portArgIdx + 1], 10);
+    if (!isNaN(val)) PORT = val;
+  } else if (process.env.DEFAULT_APP_PORT) {
+    const val = parseInt(process.env.DEFAULT_APP_PORT, 10);
+    if (!isNaN(val)) PORT = val;
+  } else if (process.env.APP_PORT) {
+    const val = parseInt(process.env.APP_PORT, 10);
+    if (!isNaN(val)) PORT = val;
+  } else if (process.env.PORT && process.env.PORT !== '8080') {
+    const val = parseInt(process.env.PORT, 10);
+    if (!isNaN(val)) PORT = val;
+  }
 
   app.use(express.json({ limit: '10mb' }));
 
@@ -94,12 +114,28 @@ async function startServer() {
     }
   });
 
+  // GET /api/data/export-json: Download complete JSON database
+  app.get('/api/data/export-json', (req, res) => {
+    try {
+      const db = ensureDbFile();
+      res.setHeader('Content-Disposition', 'attachment; filename="adventure_m1_full_data.json"');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return res.send(JSON.stringify(db, null, 2));
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Data export error' });
+    }
+  });
+
   // GET /api/export/download: Download compressed full project archive
   app.get('/api/export/download', (req, res) => {
     try {
       const archivePath = path.resolve(__dirname, 'adventure-m1-code.tar.gz');
       // Ensure latest committed archive is generated
       try {
+        execSync('git add .', { cwd: __dirname });
+        try {
+          execSync('git commit -m "chore: snapshot code and data before archive export"', { cwd: __dirname });
+        } catch {}
         execSync('git archive --format=tar.gz -o adventure-m1-code.tar.gz HEAD', { cwd: __dirname });
       } catch (archiveErr) {
         console.warn('git archive warning:', archiveErr);
@@ -118,9 +154,20 @@ async function startServer() {
   // POST /api/github/push: Push project repository to user's GitHub
   app.post('/api/github/push', (req, res) => {
     try {
-      const { repoUrl, token, branch = 'main' } = req.body || {};
+      const { repoUrl, token, branch = 'main', allData } = req.body || {};
       if (!repoUrl) {
         return res.status(400).json({ success: false, error: 'กรุณาระบุ URL ของ GitHub Repository' });
+      }
+
+      // If client provided full application dataset, persist it to disk first so git tracks it
+      if (allData && typeof allData === 'object') {
+        saveDbFile(allData);
+        try {
+          const exportPath = path.resolve(DB_DIR, 'adventure_m1_dataset.json');
+          fs.writeFileSync(exportPath, JSON.stringify(allData, null, 2), 'utf-8');
+        } catch (e) {
+          console.warn('Could not write export dataset:', e);
+        }
       }
 
       let authenticatedUrl = repoUrl.trim();
@@ -133,10 +180,10 @@ async function startServer() {
         authenticatedUrl = `https://${cleanToken}@${stripped}`;
       }
 
-      // Commit any uncommitted changes first
+      // Commit all uncommitted changes and persistent data files
       try {
         execSync('git add .', { cwd: __dirname });
-        execSync('git commit -m "update: Latest project code and features"', { cwd: __dirname });
+        execSync('git commit -m "update: Sync all application data and latest codebase to GitHub"', { cwd: __dirname });
       } catch {}
 
       try {
@@ -146,7 +193,7 @@ async function startServer() {
       execSync(`git remote add origin ${authenticatedUrl}`, { cwd: __dirname });
       execSync(`git push -u origin ${branch} --force`, { cwd: __dirname, timeout: 30000 });
 
-      return res.json({ success: true, message: `อัปโหลดโค้ดทั้งหมดขึ้น GitHub (${branch}) สำเร็จเรียบร้อย!` });
+      return res.json({ success: true, message: `อัปโหลดโค้ดและข้อมูลทั้งหมดขึ้น GitHub (${branch}) สำเร็จเรียบร้อย!` });
     } catch (err: any) {
       const errorMsg = err?.stderr?.toString() || err?.message || 'Git push error';
       return res.status(500).json({
@@ -667,14 +714,21 @@ async function startServer() {
     });
   } else {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    console.error(`Dev server encountered an error on port ${PORT}:`, err);
   });
 }
 

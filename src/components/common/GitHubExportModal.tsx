@@ -18,9 +18,12 @@ import {
   ShieldCheck,
   FolderArchive,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Database,
+  FileJson
 } from 'lucide-react';
 import { feedback } from '../../utils/feedback';
+import { StorageService } from '../../services/storage';
 
 interface GitHubExportModalProps {
   isOpen: boolean;
@@ -45,6 +48,11 @@ export const GitHubExportModal: React.FC<GitHubExportModalProps> = ({
     window.location.href = '/api/export/download';
   };
 
+  const handleDownloadDataJson = () => {
+    StorageService.downloadDataAsJsonFile('adventure_m1_full_data.json');
+    feedback.save('ดาวน์โหลดไฟล์ฐานข้อมูล JSON ทั้งหมดสำเร็จ', 'adventure_m1_full_data.json');
+  };
+
   const handlePushToGithub = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoUrl.trim()) {
@@ -56,6 +64,9 @@ export const GitHubExportModal: React.FC<GitHubExportModalProps> = ({
     setPushStatus(null);
 
     try {
+      // Gather all application data so git captures the entire database snapshot
+      const allData = StorageService.exportAllData();
+
       const res = await fetch('/api/github/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,13 +74,14 @@ export const GitHubExportModal: React.FC<GitHubExportModalProps> = ({
           repoUrl: repoUrl.trim(),
           token: githubToken.trim(),
           branch: branch.trim() || 'main',
+          allData,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
         setPushStatus({ success: true, message: data.message });
-        feedback.add('อัปโหลดขึ้น GitHub สำเร็จ!', repoUrl);
+        feedback.add('อัปโหลดโค้ดและข้อมูลขึ้น GitHub สำเร็จ!', repoUrl);
       } else {
         setPushStatus({
           success: false,
@@ -164,39 +176,69 @@ git push -u origin main --force`;
             </div>
           )}
 
-          {/* METHOD 1: 1-Click Source Download (.tar.gz) */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-800/60 to-slate-800/40 border border-amber-500/30 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* EXPORT OPTIONS: Code Archive & Full Dataset JSON */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* 1. Full Code Archive (.tar.gz) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-slate-800/60 to-slate-900 border border-amber-500/30 flex flex-col justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <FolderArchive className="w-5 h-5 text-amber-400" />
-                  <h4 className="font-bold text-sm text-white font-['Chakra_Petch']">
-                    วิธีที่ 1: ดาวน์โหลดไฟล์โค้ดทั้งโปรเจกต์ (.tar.gz)
+                  <FolderArchive className="w-4 h-4 text-amber-400" />
+                  <h4 className="font-bold text-xs text-white font-['Chakra_Petch']">
+                    ดาวน์โหลดโค้ดทั้งโปรเจกต์ (.tar.gz)
                   </h4>
                 </div>
-                <p className="text-xs text-slate-300">
-                  ดาวน์โหลดไฟล์ Zip/Tarball ทั้งหมด 80+ ไฟล์ (พร้อม README, Config, และ Assets) ไปแตกไฟล์หรืออัปโหลดบน GitHub ด้วยตนเองได้ทันที
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  ดาวน์โหลดโค้ด 80+ ไฟล์ครบชุด (พร้อม README, Config, และทุกคอมโพเนนต์)
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={handleDownloadArchive}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow hover:scale-105 shrink-0 cursor-pointer"
+                className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow hover:scale-102 cursor-pointer"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-3.5 h-3.5" />
                 <span>ดาวน์โหลดโค้ด (.tar.gz)</span>
+              </button>
+            </div>
+
+            {/* 2. Full Database & Exams (.json) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-slate-800/60 to-slate-900 border border-emerald-500/30 flex flex-col justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-emerald-400" />
+                  <h4 className="font-bold text-xs text-white font-['Chakra_Petch']">
+                    ดาวน์โหลดฐานข้อมูลทั้งหมด (.json)
+                  </h4>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  คลังข้อสอบ 7 บท, นักเรียน, คะแนน, สถิติจุดผิดพลาด, และการตั้งค่าครบ 100%
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadDataJson}
+                className="w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow hover:scale-102 cursor-pointer"
+              >
+                <FileJson className="w-3.5 h-3.5" />
+                <span>ดาวน์โหลดข้อมูล (.json)</span>
               </button>
             </div>
           </div>
 
           {/* METHOD 2: Direct Push via Token */}
           <form onSubmit={handlePushToGithub} className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-              <Upload className="w-4 h-4 text-indigo-400" />
-              <h4 className="font-bold text-sm text-white font-['Chakra_Petch']">
-                วิธีที่ 2: อัปโหลดเข้าสู่ GitHub Repository โดยตรง
-              </h4>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-indigo-400" />
+                <h4 className="font-bold text-sm text-white font-['Chakra_Petch']">
+                  อัปโหลดโค้ดและข้อมูลทั้งหมดขึ้น GitHub Repository
+                </h4>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
+                Code + Data Included
+              </span>
             </div>
 
             <div className="space-y-3 text-xs">

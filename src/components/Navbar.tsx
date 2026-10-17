@@ -212,8 +212,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* GitHub Export / Upload Button */}
-            {onOpenGitHubExport && (
+            {/* GitHub Export / Upload Button (Only visible for authenticated users) */}
+            {currentUser && onOpenGitHubExport && (
               <button
                 id="nav-github-export-btn"
                 type="button"
