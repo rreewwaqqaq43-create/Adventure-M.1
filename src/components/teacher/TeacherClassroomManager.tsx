@@ -111,7 +111,9 @@ export const TeacherClassroomManager: React.FC<TeacherClassroomManagerProps> = (
   // Load all users and profiles fresh
   const allUsers = StorageService.getUsers();
   const allProfiles = StorageService.getStudentProfiles();
-  const allStudentUsers = allUsers.filter((u) => u.role === 'student');
+  const allStudentUsers = allUsers.filter(
+    (u) => u.role === 'student' && (u.approvalStatus || 'approved') === 'approved'
+  );
 
   // Students in selected class
   const classStudents = allStudentUsers

@@ -265,3 +265,130 @@ export async function logoutFirebase() {
     console.error('Logout error:', error);
   }
 }
+
+// -------------------------------------------------------------
+// Google Sheets & Firebase Firestore Synchronization
+// -------------------------------------------------------------
+export interface FirestoreGradeRecord {
+  seatNumber: number;
+  studentId: string;
+  name: string;
+  classroom: string;
+  chapterScores: Record<string, number>;
+  quizTotal: number;
+  gameTotal: number;
+  totalScore: number;
+  xp: number;
+  evaluation: string;
+  assignedTeacherId?: string;
+  assignedTeacherName?: string;
+  approvalDate?: string;
+}
+
+export async function syncUserApprovalToFirestore(
+  userId: string,
+  approvalData: {
+    approvalStatus: 'approved' | 'rejected';
+    assignedTeacherId?: string;
+    assignedTeacherName?: string;
+    approvedByAdminId?: string;
+    approvalDate: string;
+  }
+): Promise<boolean> {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(
+      userRef,
+      {
+        ...approvalData,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.warn('Firestore user approval sync notice:', err);
+    return false;
+  }
+}
+
+export interface FirestoreGradebookSync {
+  classroom: string;
+  studentsCount: number;
+  students: FirestoreGradeRecord[];
+  googleSheetUrl?: string;
+  googleSpreadsheetId?: string;
+  lastSyncedAt: string;
+  syncedBy?: string;
+  syncSource: 'Google Sheets & Firebase Auto-Sync';
+}
+
+// 1. Sync Gradebook to Firestore
+export async function syncGradebookToFirestore(
+  classroom: string,
+  records: FirestoreGradeRecord[],
+  googleSheetUrl?: string,
+  syncedBy?: string
+): Promise<boolean> {
+  try {
+    const classKey = (classroom || 'all').replace(/[\/\s]/g, '_');
+    const docRef = doc(db, 'gradebooks', classKey);
+    const payload: FirestoreGradebookSync = {
+      classroom,
+      studentsCount: records.length,
+      students: records,
+      ...(googleSheetUrl ? { googleSheetUrl } : {}),
+      lastSyncedAt: new Date().toISOString(),
+      ...(syncedBy ? { syncedBy } : {}),
+      syncSource: 'Google Sheets & Firebase Auto-Sync',
+    };
+    await setDoc(docRef, payload, { merge: true });
+
+    // Also update a global sync log
+    const metaRef = doc(db, 'sheets_sync', 'status');
+    await setDoc(metaRef, {
+      [`${classKey}_lastSynced`]: new Date().toISOString(),
+      [`${classKey}_studentCount`]: records.length,
+      ...(googleSheetUrl ? { [`${classKey}_sheetUrl`]: googleSheetUrl } : {}),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `gradebooks/${classroom}`);
+    return false;
+  }
+}
+
+// 2. Fetch Gradebook from Firestore
+export async function fetchGradebookFromFirestore(
+  classroom: string
+): Promise<FirestoreGradebookSync | null> {
+  try {
+    const classKey = (classroom || 'all').replace(/[\/\s]/g, '_');
+    const docRef = doc(db, 'gradebooks', classKey);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as FirestoreGradebookSync;
+    }
+    return null;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, `gradebooks/${classroom}`);
+    return null;
+  }
+}
+
+// 3. Fetch all Sheets Sync status from Firestore
+export async function fetchSheetsSyncStatusFromFirestore(): Promise<Record<string, any> | null> {
+  try {
+    const docRef = doc(db, 'sheets_sync', 'status');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data();
+    }
+    return null;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, 'sheets_sync/status');
+    return null;
+  }
+}

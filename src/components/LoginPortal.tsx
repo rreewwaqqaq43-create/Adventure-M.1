@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { User, TeacherProfile } from '../types';
-import { StorageService } from '../services/storage';
+import { StorageService, INITIAL_ADMIN_USER, INITIAL_SUPERADMIN_TEACHER2, INITIAL_TEACHER_T01, INITIAL_STUDENT_S01 } from '../services/storage';
 import { signInWithGoogle } from '../services/auth';
 import { signInWithAnyEmail } from '../services/firebase';
 import {
@@ -67,24 +67,55 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
   const [forgotMsg, setForgotMsg] = useState<string | null>(null);
   const [forgotError, setForgotError] = useState<string | null>(null);
 
-  // 1. Google Sign-In
+  // Quick-Fill Demo Account (บันทึกจำไว้สำหรับทดสอบระบบ)
+  const fillDemoAccount = (role: 'admin' | 'natthicha' | 'teacher' | 'student') => {
+    setErrorMsg(null);
+    if (role === 'admin') {
+      setActiveTab('teacher');
+      setIdentifier('Admin01');
+      setPassword('Admin123');
+      setRememberMe(true);
+      setSuccessMsg('⚡ โหลดรหัสผู้ดูแลระบบ Admin: Admin01 / รหัสผ่าน Admin123 เรียบร้อย');
+    } else if (role === 'natthicha') {
+      setActiveTab('teacher');
+      setIdentifier('6711508546@chandra.ac.th');
+      setPassword('000863677');
+      setRememberMe(true);
+      setSuccessMsg('⚡ โหลดรหัสผู้สอนคนที่ 2: อาจารย์ณัฐทิชา บัวสาย (6711508546 / 000863677) สิทธิ์ Super Admin การจัดการระบบทั้งหมด เรียบร้อย');
+    } else if (role === 'teacher') {
+      setActiveTab('teacher');
+      setIdentifier('T01');
+      setPassword('T12345');
+      setRememberMe(true);
+      setSuccessMsg('⚡ โหลดรหัสผู้สอนคนที่ 1: T01 / รหัสผ่าน T12345 เรียบร้อย');
+    } else {
+      setActiveTab('student');
+      setIdentifier('S01');
+      setPassword('S12345');
+      setRememberMe(true);
+      setSuccessMsg('⚡ โหลดรหัสจำลองนักเรียน: S01 / รหัสผ่าน S12345 เรียบร้อย');
+    }
+    setTimeout(() => setSuccessMsg(null), 3500);
+  };
+
+  // Google Sign-In with real authentication
   const handleGoogleSignIn = async () => {
     setErrorMsg(null);
     setIsGoogleLoading(true);
     try {
       const res: any = await signInWithGoogle();
-      const fb = res?.firebaseUser || res?.user || res;
-      if (fb && (fb.email || fb.uid)) {
+      if (res && res.success && res.firebaseUser) {
+        const fb = res.firebaseUser;
         const email = fb.email || `google-user-${fb.uid.slice(0, 6)}@gmail.com`;
         const displayName = fb.displayName || (activeTab === 'teacher' ? 'คุณครู' : 'นักเรียน');
-
+        
         const freshUsers = StorageService.getUsers();
         let existingUser = freshUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
         if (!existingUser) {
-          const isTeacher = activeTab === 'teacher' || regRole === 'teacher';
+          const isTeacher = activeTab === 'teacher';
           const newUser: User = {
             id: `google-${fb.uid}`,
-            email: email,
+            email: email.toLowerCase(),
             name: displayName,
             role: isTeacher ? 'teacher' : 'student',
             password: 'password123',
@@ -116,14 +147,51 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
           existingUser = newUser;
         }
 
-        setSuccessMsg(`เข้าสู่ระบบด้วย Google สำเร็จ ยินดีต้อนรับ ${existingUser.name}`);
+        // Check user approval status (teachers require Admin approval, students require Teacher approval)
+        if (existingUser.role !== 'admin') {
+          if (existingUser.approvalStatus === 'pending') {
+            if (existingUser.role === 'teacher') {
+              setErrorMsg('⏳ บัญชีครูผู้สอนนี้กำลังรอการอนุมัติจากผู้ดูแลระบบ (Admin) จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+            } else {
+              setErrorMsg('⏳ บัญชีนักเรียนนี้กำลังรอคุณครูกดตอบรับเข้าห้องเรียน จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+            }
+            return;
+          }
+
+          if (existingUser.approvalStatus === 'rejected') {
+            setErrorMsg('❌ บัญชีนี้ไม่ผ่านการอนุมัติ กรุณาติดต่อสถานศึกษาหรือผู้ดูแลระบบ');
+            return;
+          }
+        }
+
+        setSuccessMsg(`เข้าสู่ระบบด้วยบัญชี Google สำเร็จ ยินดีต้อนรับ ${existingUser.name}`);
         setTimeout(() => {
           StorageService.setCurrentUser(existingUser!);
           onLoginSuccess(existingUser!);
-        }, 400);
+        }, 350);
+        return;
+      }
+
+      if (res && !res.success) {
+        if (
+          res.isAccessDenied ||
+          res.isTestingMode ||
+          res.errorMessage?.includes('403') ||
+          res.errorMessage?.includes('access_denied') ||
+          res.errorMessage?.includes('ยืนยันตัวตน')
+        ) {
+          setErrorMsg('❌ การเข้าสู่ระบบด้วย Google ไม่สำเร็จ: แอปอยู่ในระหว่างทดสอบของ Google (Error 403: access_denied) กรุณาใช้อีเมลและรหัสผ่านเพื่อเข้าสู่ระบบด้านล่าง');
+        } else if (res.popupBlocked) {
+          setErrorMsg('❌ เบราว์เซอร์บล็อกหน้าต่างป็อปอัปของ Google กรุณาอนุญาตป็อปอัป หรือใช้อีเมลและรหัสผ่านด้านล่าง');
+        } else if (res.cancelled) {
+          setErrorMsg('หน้าต่างเข้าสู่ระบบ Google ถูกปิด กรุณาลองใหม่อีกครั้ง หรือใช้อีเมลและรหัสผ่าน');
+        } else {
+          setErrorMsg(res.errorMessage || 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ');
+        }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้');
+      console.warn('Google sign-in exception:', err);
+      setErrorMsg('เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sign-In กรุณาใช้อีเมลและรหัสผ่าน');
     } finally {
       setIsGoogleLoading(false);
     }
@@ -149,32 +217,34 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
 
     const cleanInput = identifier.trim().toLowerCase();
 
-    // Check for root Admin login credentials: Admin01 / Admin123
-    if (cleanInput === 'admin01' || cleanInput === 'admin' || cleanInput === 'admin01@school.ac.th') {
+    // 1. Check for Admin01 (ผู้ดูแลระบบกลาง): Admin01 / Admin123
+    if (
+      cleanInput === 'admin01' ||
+      cleanInput === 'admin' ||
+      cleanInput === 'admin01@school.ac.th'
+    ) {
       const allUsers = StorageService.getUsers();
       let adminUser = allUsers.find(
-        (u) => u.role === 'admin' || u.id === 'admin-1' || u.email.toLowerCase() === 'admin01@school.ac.th'
+        (u) =>
+          u.id === 'admin-1' ||
+          u.email.toLowerCase() === 'admin01@school.ac.th'
       );
       if (!adminUser) {
-        adminUser = {
-          id: 'admin-1',
-          email: 'Admin01@school.ac.th',
-          name: 'ผู้ดูแลระบบ Admin01',
-          role: 'admin',
-          password: 'Admin123',
-          avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin01Super',
-          createdAt: new Date().toISOString(),
-        };
+        adminUser = INITIAL_ADMIN_USER;
         StorageService.addUser(adminUser);
       }
 
-      if (password.trim() !== 'Admin123') {
-        setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง');
+      const isPassValid =
+        password.trim() === 'Admin123' ||
+        StorageService.verifyUserPassword(adminUser.id, password.trim());
+
+      if (!isPassValid) {
+        setErrorMsg('❌ รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง (รหัสคือ Admin123)');
         setIsSubmitting(false);
         return;
       }
 
-      setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${adminUser.name}`);
+      setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${adminUser.name} (${adminUser.email})`);
       setTimeout(() => {
         StorageService.setCurrentUser(adminUser!);
         onLoginSuccess(adminUser!);
@@ -182,11 +252,111 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
       return;
     }
 
+    // 2. Check for อาจารย์ณัฐทิชา บัวสาย (ผู้สอนคนที่ 2 / Super Admin การจัดการระบบทั้งหมด): 6711508546@chandra.ac.th / 000863677 (หรือพิมพ์ 6711508546, ผู้ดูแลระบบ)
+    if (
+      cleanInput === '6711508546@chandra.ac.th' ||
+      cleanInput === '6711508546' ||
+      cleanInput === 'ผู้ดูแลระบบ' ||
+      cleanInput === 'อาจารย์ณัฐทิชา' ||
+      cleanInput === 'ณัฐทิชา' ||
+      cleanInput === 't02' ||
+      cleanInput === 'teacher02'
+    ) {
+      const allUsers = StorageService.getUsers();
+      let natthichaUser = allUsers.find(
+        (u) =>
+          u.id === 'teacher-2-natthicha' ||
+          u.email.toLowerCase() === '6711508546@chandra.ac.th'
+      );
+      if (!natthichaUser) {
+        natthichaUser = INITIAL_SUPERADMIN_TEACHER2;
+        StorageService.addUser(natthichaUser);
+      }
+
+      const isPassValid =
+        password.trim() === '000863677' ||
+        StorageService.verifyUserPassword(natthichaUser.id, password.trim());
+
+      if (!isPassValid) {
+        setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง (รหัสเริ่มต้นของอาจารย์ณัฐทิชาคือ 000863677)');
+        setIsSubmitting(false);
+        return;
+      }
+
+      setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${natthichaUser.name} (ผู้สอนคนที่ 2 - Super Admin การจัดการระบบทั้งหมด)`);
+      setTimeout(() => {
+        StorageService.setCurrentUser(natthichaUser!);
+        onLoginSuccess(natthichaUser!);
+      }, 400);
+      return;
+    }
+
+    // 3. Check for Teacher T01 credentials: T01 / T12345 (ผู้สอนคนที่ 1)
+    if (cleanInput === 't01' || cleanInput === 't01@school.ac.th' || cleanInput === 'teacher01') {
+      const allUsers = StorageService.getUsers();
+      let teacherUser = allUsers.find(
+        (u) => u.id === 'teacher-t01' || u.email.toLowerCase() === 't01@school.ac.th'
+      );
+      if (!teacherUser) {
+        teacherUser = INITIAL_TEACHER_T01;
+        StorageService.addUser(teacherUser);
+      }
+
+      const isPassValid =
+        password.trim() === 'T12345' ||
+        StorageService.verifyUserPassword(teacherUser.id, password.trim());
+
+      if (!isPassValid) {
+        setErrorMsg('❌ รหัสผ่านผู้สอนไม่ถูกต้อง (รหัสผ่านคือ T12345)');
+        setIsSubmitting(false);
+        return;
+      }
+
+      setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${teacherUser.name} (ผู้สอนคนที่ 1)`);
+      setTimeout(() => {
+        StorageService.setCurrentUser(teacherUser!);
+        onLoginSuccess(teacherUser!);
+      }, 400);
+      return;
+    }
+
+    // 4. Check for Student S01 credentials: S01 / S12345 (นักเรียน)
+    if (cleanInput === 's01' || cleanInput === 's01@school.ac.th' || cleanInput === 'student01') {
+      const allUsers = StorageService.getUsers();
+      let studentUser = allUsers.find(
+        (u) => u.id === 'student-s01' || u.email.toLowerCase() === 's01@school.ac.th'
+      );
+      if (!studentUser) {
+        studentUser = INITIAL_STUDENT_S01;
+        StorageService.addUser(studentUser);
+      }
+
+      const isPassValid =
+        password.trim() === 'S12345' ||
+        StorageService.verifyUserPassword(studentUser.id, password.trim());
+
+      if (!isPassValid) {
+        setErrorMsg('❌ รหัสผ่านนักเรียนไม่ถูกต้อง (รหัสผ่านคือ S12345)');
+        setIsSubmitting(false);
+        return;
+      }
+
+      setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${studentUser.name}`);
+      setTimeout(() => {
+        StorageService.setCurrentUser(studentUser!);
+        onLoginSuccess(studentUser!);
+      }, 400);
+      return;
+    }
+
     const emailToUse = cleanInput.includes('@') ? cleanInput : `${cleanInput}@school.ac.th`;
 
-    // Attempt Firebase Authentication in parallel if possible
+    // Attempt Firebase Authentication in parallel if reachable (with 1.5s timeout so user is never blocked)
     try {
-      await signInWithAnyEmail(emailToUse, password);
+      await Promise.race([
+        signInWithAnyEmail(emailToUse, password),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
     } catch {}
 
     const freshUsers = StorageService.getUsers();
@@ -224,6 +394,25 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
       return;
     }
 
+    // Check user approval status (teachers require Admin approval, students require Teacher approval)
+    if (user.role !== 'admin') {
+      if (user.approvalStatus === 'pending') {
+        if (user.role === 'teacher') {
+          setErrorMsg('⏳ บัญชีครูผู้สอนนี้กำลังรอการอนุมัติจากผู้ดูแลระบบ (Admin) จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+        } else {
+          setErrorMsg('⏳ บัญชีนักเรียนนี้กำลังรอคุณครูกดตอบรับเข้าห้องเรียน จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (user.approvalStatus === 'rejected') {
+        setErrorMsg('❌ บัญชีนี้ไม่ผ่านการอนุมัติ กรุณาติดต่อสถานศึกษาหรือผู้ดูแลระบบ');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${user.name}`);
     setTimeout(() => {
       StorageService.setCurrentUser(user!);
@@ -254,8 +443,9 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
       name: regName.trim(),
       role: regRole,
       password: regPassword.trim() || 'password123',
-      avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${regName}`,
+      avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(regName.trim())}`,
       createdAt: new Date().toISOString(),
+      approvalStatus: 'pending',
     };
 
     StorageService.addUser(newUser);
@@ -268,6 +458,12 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
         subjectTaught: 'เทคโนโลยี (วิทยาการคำนวณ) ม.1',
         classesManaged: ['ม.1/1', 'ม.1/2'],
       });
+      setSuccessMsg('ลงทะเบียนครูผู้สอนเรียบร้อยแล้ว บัญชีของคุณอยู่ระหว่างรอการอนุมัติจากผู้ดูแลระบบ (Admin) กรุณารอการตรวจสอบก่อนเข้าใช้งาน');
+      setTimeout(() => {
+        setActiveTab('teacher');
+        setIdentifier(emailToUse);
+        setPassword('');
+      }, 2000);
     } else {
       StorageService.updateStudentProfile({
         userId: newUser.id,
@@ -279,13 +475,13 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
         level: 1,
         totalCompletedLessons: 0,
       });
+      setSuccessMsg('ลงทะเบียนนักเรียนเรียบร้อยแล้ว บัญชีของคุณอยู่ระหว่างรอคุณครูประจำชั้นกดตอบรับเข้าห้องเรียน กรุณารอคุณครูอนุมัติก่อนเข้าสู่ระบบ');
+      setTimeout(() => {
+        setActiveTab('student');
+        setIdentifier(emailToUse);
+        setPassword('');
+      }, 2000);
     }
-
-    setSuccessMsg(`ลงทะเบียนสำเร็จ ยินดีต้อนรับ ${newUser.name}`);
-    setTimeout(() => {
-      StorageService.setCurrentUser(newUser);
-      onLoginSuccess(newUser);
-    }, 450);
   };
 
   // 4. Handle Password Reset in Modal
@@ -403,6 +599,8 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
             </p>
           </div>
 
+
+
           {/* Role Tabs: นักเรียน / ครูผู้สอน / ลงทะเบียนใหม่ */}
           <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-950 rounded-2xl border border-slate-800">
             <button
@@ -457,14 +655,14 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
             </button>
           </div>
 
-          {/* Google Sign-in Primary Button */}
+          {/* Google Sign-in */}
           <div>
             <button
               id="btn-google-login"
               type="button"
               disabled={isGoogleLoading}
               onClick={handleGoogleSignIn}
-              className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.01] border border-slate-200 disabled:opacity-70 group cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 shadow transition-all hover:scale-[1.01] border border-slate-200 disabled:opacity-70 group cursor-pointer"
             >
               {isGoogleLoading ? (
                 <div className="w-5 h-5 border-2 border-slate-800 border-t-transparent rounded-full animate-spin" />
@@ -500,7 +698,7 @@ export const LoginPortal: React.FC<LoginPortalProps> = ({
             <div className="flex items-center my-4">
               <div className="flex-1 border-t border-slate-800"></div>
               <span className="px-3 text-slate-500 text-[11px] uppercase tracking-wider font-semibold">
-                หรือเข้าสู่ระบบด้วยอีเมล
+                หรือเข้าสู่ระบบด้วยอีเมล / รหัสประจำตัว
               </span>
               <div className="flex-1 border-t border-slate-800"></div>
             </div>

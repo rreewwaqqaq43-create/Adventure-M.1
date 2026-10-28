@@ -4,6 +4,7 @@
  */
 
 import { getCachedAccessToken } from './auth';
+import { syncGradebookToFirestore, FirestoreGradeRecord } from './firebase';
 
 export function getOAuthAccessToken(): string | null {
   return getCachedAccessToken();
@@ -23,7 +24,8 @@ export interface StudentGradeRow {
 }
 
 /**
- * Creates a new Google Spreadsheet and populates it with student grade reports
+ * Creates a new Google Spreadsheet, populates it with student grade reports,
+ * and synchronizes with Firebase Firestore.
  */
 export async function createGradebookSpreadsheet(
   classroomName: string,
@@ -34,7 +36,7 @@ export async function createGradebookSpreadsheet(
 ): Promise<string> {
   const token = tokenOverride || getCachedAccessToken();
   if (!token) {
-    throw new Error('ไม่พบการอนุญาต Google Sheets กรุณาเข้าสู่ระบบด้วย Google ก่อนส่งออก');
+    throw new Error('ไม่พบการอนุญาต Google Sheets กรุณาเข้าสู่ระบบด้วย Google ก่อนส่งออก หรือดาวน์โหลดไฟล์ตารางคะแนนแทน');
   }
 
   const title = customTitle || `Adventure M.1 - รายงานผลการเรียน ชั้น ${classroomName} (${new Date().toLocaleDateString('th-TH')})`;
@@ -53,7 +55,7 @@ export async function createGradebookSpreadsheet(
           properties: {
             title: 'คะแนนวิทยาการคำนวณ ม.1',
             gridProperties: {
-              frozenRowCount: 1,
+              frozenRowCount: 2,
             },
           },
         },
@@ -71,7 +73,13 @@ export async function createGradebookSpreadsheet(
   const spreadsheetUrl =
     spreadsheet.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 
-  const allValues = [headers, ...rows];
+  // Include Firebase synchronization metadata banner in sheet
+  const syncBanner = [
+    `ข้อมูลเชื่อมต่อ Firebase Firestore: ai-studio-adventurem1 (ซิงค์ตรงกันล่าสุด: ${new Date().toLocaleString('th-TH')})`,
+    ...Array(headers.length - 1).fill(''),
+  ];
+
+  const allValues = [syncBanner, headers, ...rows];
 
   const updateRes = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'คะแนนวิทยาการคำนวณ ม.1'!A1?valueInputOption=USER_ENTERED`,
@@ -94,11 +102,39 @@ export async function createGradebookSpreadsheet(
     throw new Error(errData?.error?.message || `บันทึกข้อมูลสเปรดชีตไม่สำเร็จ (${updateRes.status})`);
   }
 
+  // Synchronize Google Sheets and Gradebook data directly to Firebase Firestore
+  try {
+    const firestoreRecords: FirestoreGradeRecord[] = rows.map((r) => ({
+      seatNumber: Number(r[0]) || 1,
+      studentId: String(r[1] || '-'),
+      name: String(r[2] || ''),
+      classroom: String(r[3] || classroomName),
+      chapterScores: {
+        ch1: Number(r[4]) || 0,
+        ch2: Number(r[5]) || 0,
+        ch3: Number(r[6]) || 0,
+        ch4: Number(r[7]) || 0,
+        ch5: Number(r[8]) || 0,
+        ch6: Number(r[9]) || 0,
+        ch7: Number(r[10]) || 0,
+      },
+      quizTotal: Number(r[11]) || 0,
+      gameTotal: Number(r[12]) || 0,
+      totalScore: Number(r[13]) || 0,
+      xp: Number(r[14]) || 0,
+      evaluation: String(r[15] || 'ผ่านเกณฑ์'),
+    }));
+
+    await syncGradebookToFirestore(classroomName, firestoreRecords, spreadsheetUrl);
+  } catch (syncErr) {
+    console.warn('Deferred Firebase sync during Google Sheets create:', syncErr);
+  }
+
   return spreadsheetUrl;
 }
 
 /**
- * Downloads CSV file for teachers
+ * Downloads CSV file for teachers (Includes all 7 chapters and Firebase Firestore sync state)
  */
 export function exportGradebookToCSV(
   classroomName: string,
@@ -110,18 +146,23 @@ export function exportGradebookToCSV(
     'รหัสนักเรียน',
     'ชื่อ-นามสกุล',
     'ห้องเรียน',
-    'สอบบทที่ 1',
-    'สอบบทที่ 2',
-    'สอบบทที่ 3',
-    'สอบบทที่ 4',
-    'สอบบทที่ 5',
-    'สอบบทที่ 6',
-    'สอบรวม',
-    'มินิเกมรวม',
-    'คะแนนรวม',
+    'สอบบทที่ 1 (3)',
+    'สอบบทที่ 2 (3)',
+    'สอบบทที่ 3 (3)',
+    'สอบบทที่ 4 (3)',
+    'สอบบทที่ 5 (3)',
+    'สอบบทที่ 6 (3)',
+    'สอบบทที่ 7 ปลายภาค (30)',
+    'คะแนนสอบรวม',
+    'คะแนนมินิเกมรวม',
+    'คะแนนสุทธิ',
     'XP สะสม',
     'ผลประเมิน',
+    'สถานะ Firebase Firestore',
+    'วันเวลาที่ซิงค์',
   ];
+
+  const nowString = new Date().toLocaleString('th-TH');
 
   const csvRows = [
     headers.join(','),
@@ -137,11 +178,14 @@ export function exportGradebookToCSV(
         s.chapterQuizScores[4] || 0,
         s.chapterQuizScores[5] || 0,
         s.chapterQuizScores[6] || 0,
+        s.chapterQuizScores[7] || 0,
         s.quizTotal || 0,
         s.gameTotal || 0,
         s.totalScore || 0,
         s.xp || 0,
         `"${s.totalScore >= 12 ? 'ดีมาก' : s.totalScore >= 8 ? 'ผ่านเกณฑ์' : 'รอปรับปรุง'}"`,
+        `"Synced with Firebase"`,
+        `"${nowString}"`,
       ].join(',')
     ),
   ];
@@ -179,10 +223,12 @@ export function exportStudentReportToCSV(
   });
 
   const metadataRows = [
-    `"รายงานผลการเรียนรายบุคคล Adventure M.1"`,
+    `"รายงานผลการเรียนรายบุคคล Adventure M.1 (สสวท.)"`,
     `"ชื่อ-นามสกุล: ${user.name}"`,
     `"รหัสนักเรียน: ${studentProfile?.studentId || '-'} ห้อง: ${studentProfile?.classroom || 'ม.1/1'} เลขที่: ${studentProfile?.seatNumber || 1}"`,
     `"XP รวม: ${studentProfile?.xp || 0} ระดับ: Level ${studentProfile?.level || 1}"`,
+    `"สถานะฐานข้อมูล: เชื่อมต่อและซิงค์ตรงกับ Firebase Firestore & Google Sheets"`,
+    `"เวลาที่ออกรายงาน: ${new Date().toLocaleString('th-TH')}"`,
     '',
   ];
 

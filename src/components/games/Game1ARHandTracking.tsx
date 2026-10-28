@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import {
   Camera,
   Hand,
@@ -16,20 +17,18 @@ import {
   EyeOff,
   Video,
   VideoOff,
-  Layers,
   ArrowRight,
   ShieldAlert,
   Info,
   MousePointer,
-  HelpCircle,
   Volume2,
   VolumeX,
   Flame,
   Zap,
   Target,
-  Crosshair,
-  Sliders,
-  Scan
+  Scan,
+  Activity,
+  Layers
 } from 'lucide-react';
 import { sfx } from '../../utils/audioEffects';
 import { StorageService } from '../../services/storage';
@@ -60,7 +59,7 @@ const ROUNDS: RoundData[] = [
     id: 1,
     missionTitle: 'ภารกิจที่ 1: แผนที่ระบบรถไฟฟ้า (Transit Map Abstraction)',
     situation: 'ต้องการออกแบบแผนที่เส้นทางรถไฟฟ้าเพื่อให้ผู้โดยสารเดินทางได้สะดวกและรวดเร็วที่สุด',
-    targetGoal: 'ใช้มือ AR หรือคลิกคัดแยกเฉพาะข้อมูลที่ "จำเป็นต่อการเดินทาง" เข้าสู่ระบบ',
+    targetGoal: 'กำมือ (Fist) เพื่อคีบจับการ์ด แล้วเคลื่อนมือไปที่ช่องและแบมือ (Open) เพื่อคัดแยก',
     items: [
       { id: 'item-1', name: 'ชื่อสถานีรถไฟฟ้า', isEssential: true, category: 'การเดินทาง', icon: '🚉', reason: 'จำเป็นอย่างยิ่งเพื่อให้ผู้โดยสารทราบตำแหน่งขึ้น-ลง' },
       { id: 'item-2', name: 'จุดเชื่อมต่อสาย (Interchange)', isEssential: true, category: 'การเดินทาง', icon: '🔄', reason: 'จำเป็นในการเปลี่ยนขบวนรถเพื่อไปยังจุดหมาย' },
@@ -86,33 +85,48 @@ const ROUNDS: RoundData[] = [
   },
 ];
 
+// MediaPipe 21 Hand Landmarks bone connections
+const HAND_CONNECTIONS: [number, number][] = [
+  // Thumb
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  // Index finger
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  // Middle finger
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  // Ring finger
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  // Pinky
+  [13, 17], [17, 18], [18, 19], [19, 20],
+  // Palm base
+  [0, 17],
+];
+
+// Euclidean distance helper
+const distance2D = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+  return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+};
+
 export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComplete }) => {
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [allowSimulationFallback, setAllowSimulationFallback] = useState(false);
-  
-  // Marker & Color Tracking Mode: 'hand' (AR Hand Tracking - ค่าเริ่มต้น), 'red' (Marker แดง), 'green', 'blue', 'yellow', 'custom'
-  const [trackMode, setTrackMode] = useState<'hand' | 'red' | 'green' | 'blue' | 'yellow' | 'custom'>('hand');
-  const [customColor, setCustomColor] = useState<{ r: number; g: number; b: number }>({ r: 220, g: 30, b: 30 });
-  
-  // AR Hand/Marker position (0 to 100 percentages)
+
+  // AR Hand position (0 to 100 percentage)
   const [handPos, setHandPos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-  const rawTargetPos = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
   const smoothedPos = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
   const [isHandDetected, setIsHandDetected] = useState(false);
-  const [isFingerTracked, setIsFingerTracked] = useState(false);
+  const [handGesture, setHandGesture] = useState<'open' | 'fist' | 'neutral'>('open');
   const [trackingConfidence, setTrackingConfidence] = useState(0);
-  const [markerPixelCount, setMarkerPixelCount] = useState(0);
-  const [sensitivity, setSensitivity] = useState<'normal' | 'high' | 'ultra'>('high');
-  const [stabilityMode, setStabilityMode] = useState<'smooth' | 'ultra_steady'>('ultra_steady');
-  const [showVisionMonitor, setShowVisionMonitor] = useState(true);
+
+  // Interaction & Game State
   const [hoverTarget, setHoverTarget] = useState<string | null>(null);
   const [hoverProgress, setHoverProgress] = useState(0);
-  const [hoverActionText, setHoverActionText] = useState<string>('');
-  const [isGrabbing, setIsGrabbing] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [showVisionMonitor, setShowVisionMonitor] = useState(true);
+  const [stabilityMode, setStabilityMode] = useState<'smooth' | 'ultra_steady'>('smooth');
 
   // Classification results
   const [classified, setClassified] = useState<{ [itemId: string]: 'essential' | 'non_essential' }>({});
@@ -124,13 +138,19 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
   const [feedback, setFeedback] = useState<{ message: string; isCorrect: boolean } | null>(null);
   const [isFinished, setIsFinished] = useState(false);
 
+  // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const arCanvasRef = useRef<HTMLCanvasElement>(null);
   const monitorCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevFrameData = useRef<Uint8Array | null>(null);
+  const handLandmarkerRef = useRef<HandLandmarker | null>(null);
+  const lastVideoTimeRef = useRef<number>(-1);
+  const animFrameIdRef = useRef<number | null>(null);
+  const consecutiveFistRef = useRef<number>(0);
+  const consecutiveOpenRef = useRef<number>(0);
 
+  // Rounds
   const [rounds] = useState<RoundData[]>(() => {
     const custom = StorageService.games.getGame1Rounds();
     return custom && custom.length > 0 ? custom : ROUNDS;
@@ -138,30 +158,86 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
   const currentRound = rounds[currentRoundIdx] || rounds[0] || ROUNDS[0];
   const remainingItems = currentRound.items.filter((item) => !classified[item.id]);
 
-  // Start Camera (Real Camera Stream)
+  // Initialize MediaPipe HandLandmarker Model
+  const initMediaPipeModel = async (): Promise<HandLandmarker | null> => {
+    if (handLandmarkerRef.current) return handLandmarkerRef.current;
+    try {
+      setIsModelLoading(true);
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+      );
+      const landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numHands: 1,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+      handLandmarkerRef.current = landmarker;
+      setIsModelLoading(false);
+      return landmarker;
+    } catch (err) {
+      console.warn('Failed to load GPU delegate, trying CPU fallback:', err);
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+        );
+        const landmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+            delegate: 'CPU',
+          },
+          runningMode: 'VIDEO',
+          numHands: 1,
+        });
+        handLandmarkerRef.current = landmarker;
+        setIsModelLoading(false);
+        return landmarker;
+      } catch (cpuErr) {
+        console.error('Fatal MediaPipe loading error:', cpuErr);
+        setIsModelLoading(false);
+        setCameraError('ไม่สามารถโหลดโมเดล MediaPipe HandLandmarker ได้ สามารถใช้เมาส์/สัมผัสเล่นแทนได้ทันที');
+        return null;
+      }
+    }
+  };
+
+  // Start Real Camera Stream
   const startCamera = async () => {
     try {
       setIsCameraLoading(true);
       setCameraError(null);
+
+      // Pre-load MediaPipe HandLandmarker
+      await initMediaPipeModel();
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
         audio: false,
       });
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        try {
-          await videoRef.current.play();
-        } catch (e) {
-          console.warn('Video play error:', e);
-        }
+        await videoRef.current.play();
       }
       setIsCameraActive(true);
-      setIsHandDetected(true);
       setIsCameraLoading(false);
     } catch (err: any) {
       console.warn('Camera access error:', err);
-      setCameraError('ไม่สามารถเข้าถึงกล้องเว็บแคมได้ กรุณาอนุญาตสิทธิ์เข้าถึงกล้องในเบราว์เซอร์เพื่อเล่นเกมด้วยกล้องจริง');
+      setCameraError(
+        'ไม่สามารถเข้าถึงกล้องเว็บแคมได้ กรุณาอนุญาตสิทธิ์เข้าถึงกล้องในเบราว์เซอร์ หรือเลือก "ใช้โหมดจำลองเมาส์/สัมผัส" เพื่อเล่นได้ทันที'
+      );
       setIsCameraActive(false);
       setIsCameraLoading(false);
     }
@@ -169,14 +245,19 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
 
   // Stop Camera
   const stopCamera = () => {
+    if (animFrameIdRef.current) {
+      cancelAnimationFrame(animFrameIdRef.current);
+      animFrameIdRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     setIsCameraActive(false);
+    setIsHandDetected(false);
   };
 
-  // Auto request camera on component mount
+  // Auto request camera on mount
   useEffect(() => {
     startCamera();
     return () => {
@@ -184,302 +265,327 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
     };
   }, []);
 
-  // Real-time Optical Color & Marker Tracking Engine (Red, Green, Blue, Yellow, Custom Marker & Skin)
+  // Handle Item Select
+  const handleItemSelect = useCallback((item: AbstractionItem) => {
+    setSelectedItemId(item.id);
+    sfx.playLock();
+  }, []);
+
+  // Classify item (by ID or currently selected)
+  const handleClassify = useCallback(
+    (target: 'essential' | 'non_essential', specificItemId?: string) => {
+      const targetId = specificItemId || selectedItemId;
+      if (!targetId) return;
+
+      const item = currentRound.items.find((i) => i.id === targetId);
+      if (!item) return;
+
+      const isCorrect =
+        (target === 'essential' && item.isEssential) ||
+        (target === 'non_essential' && !item.isEssential);
+
+      if (isCorrect) {
+        const nextCombo = comboStreak + 1;
+        setComboStreak(nextCombo);
+        const earned = 15 + nextCombo * 5;
+        setScore((prev) => prev + earned);
+
+        if (nextCombo >= 2) {
+          sfx.playCombo(nextCombo);
+          setFloatingPopup(`+${earned} XP 🔥 COMBO x${nextCombo}!`);
+        } else {
+          sfx.playCorrect();
+          setFloatingPopup(`+${earned} XP ถูกต้อง!`);
+        }
+
+        setFeedback({
+          message: `ถูกต้อง! "${item.name}" คือ ${
+            item.isEssential ? 'สิ่งจำเป็น' : 'รายละเอียดที่ไม่จำเป็น'
+          } (${item.reason})`,
+          isCorrect: true,
+        });
+      } else {
+        setComboStreak(0);
+        sfx.playError();
+        setIsScreenShaking(true);
+        setTimeout(() => setIsScreenShaking(false), 400);
+        setFloatingPopup('❌ ข้อมูลไม่ตรงหมวด');
+        setFeedback({
+          message: `ยังไม่ถูกต้อง: "${item.name}" แท้จริงแล้วคือ ${
+            item.isEssential ? 'สิ่งจำเป็น' : 'รายละเอียดที่ไม่จำเป็น'
+          } (${item.reason})`,
+          isCorrect: false,
+        });
+      }
+
+      setTimeout(() => setFloatingPopup(null), 1200);
+      setClassified((prev) => ({ ...prev, [item.id]: target }));
+      setSelectedItemId(null);
+    },
+    [selectedItemId, currentRound, comboStreak]
+  );
+
+  // Main AR Hand Tracking & Hologram Rendering Loop
   useEffect(() => {
     if (!isCameraActive) return;
 
-    let animId: number;
-    let lastTime = 0;
-    const FRAME_INTERVAL = 28; // ~35 FPS for silky-smooth marker tracking
-    let prevFrame: Uint8Array | null = null;
+    let isRunning = true;
 
-    const trackMarker = (timestamp: number) => {
-      if (timestamp - lastTime > FRAME_INTERVAL) {
-        lastTime = timestamp;
-        const video = videoRef.current;
-        const processCanvas = canvasRef.current;
-        const monitorCanvas = monitorCanvasRef.current;
+    const runVisionTracking = (timestamp: number) => {
+      if (!isRunning) return;
 
-        if (video && processCanvas && video.readyState >= 2) {
-          const pw = processCanvas.width;
-          const ph = processCanvas.height;
-          const ctx = processCanvas.getContext('2d', { willReadFrequently: true });
+      const video = videoRef.current;
+      const arCanvas = arCanvasRef.current;
+      const monitorCanvas = monitorCanvasRef.current;
+      const landmarker = handLandmarkerRef.current;
 
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, pw, ph);
-            const frame = ctx.getImageData(0, 0, pw, ph);
-            const data = frame.data;
+      if (video && video.readyState >= 2 && landmarker) {
+        if (video.currentTime !== lastVideoTimeRef.current) {
+          lastVideoTimeRef.current = video.currentTime;
 
-            let matchPixelCount = 0;
-            let sumX = 0;
-            let sumY = 0;
-            let minX = pw;
-            let maxX = 0;
-            let minY = ph;
-            let maxY = 0;
-            let peakX = -1;
-            let peakY = ph;
+          const results = landmarker.detectForVideo(video, timestamp);
 
-            // Step 1: Scan Pixels based on active Marker / Color Track Mode
-            for (let y = 3; y < ph - 3; y += 2) {
-              for (let x = 3; x < pw - 3; x += 2) {
-                const idx = (y * pw + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
+          // Update AR Canvas sizing
+          if (arCanvas) {
+            if (arCanvas.width !== video.videoWidth || arCanvas.height !== video.videoHeight) {
+              arCanvas.width = video.videoWidth || 640;
+              arCanvas.height = video.videoHeight || 480;
+            }
+          }
 
-                let isMatch = false;
+          if (results && results.landmarks && results.landmarks.length > 0) {
+            const landmarks = results.landmarks[0]; // 21 hand landmarks (normalized 0-1)
+            setIsHandDetected(true);
+            setTrackingConfidence(Math.round((results.handedness[0]?.[0]?.score || 0.95) * 100));
 
-                if (trackMode === 'red') {
-                  // High-saturation RED object / paper / marker filter (ignores face and skin)
-                  isMatch =
-                    r > 80 &&
-                    r > g * 1.4 &&
-                    r > b * 1.4 &&
-                    (r - Math.max(g, b)) > 26;
-                } else if (trackMode === 'green') {
-                  // GREEN marker filter
-                  isMatch =
-                    g > 75 &&
-                    g > r * 1.3 &&
-                    g > b * 1.3 &&
-                    (g - Math.max(r, b)) > 22;
-                } else if (trackMode === 'blue') {
-                  // BLUE marker filter
-                  isMatch =
-                    b > 75 &&
-                    b > r * 1.3 &&
-                    b > g * 1.3 &&
-                    (b - Math.max(r, g)) > 22;
-                } else if (trackMode === 'yellow') {
-                  // YELLOW / Orange marker filter
-                  isMatch =
-                    r > 115 &&
-                    g > 95 &&
-                    b < 85 &&
-                    (r + g) > 2.2 * b;
-                } else if (trackMode === 'custom') {
-                  // Custom sampled color via Eyedropper
-                  const colorDiff = Math.hypot(r - customColor.r, g - customColor.g, b - customColor.b);
-                  isMatch = colorDiff < (sensitivity === 'ultra' ? 65 : sensitivity === 'high' ? 52 : 40);
-                } else {
-                  // Hand/Skin mode (Adaptive YCbCr + RGB chrominance test)
-                  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                  const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-                  const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+            // 1. Gesture Recognition: Fist (กำมือ) vs Open Hand (แบมือ)
+            const wrist = landmarks[0];
+            const middleMcp = landmarks[9];
+            const palmScale = distance2D(wrist, middleMcp) || 0.1;
 
-                  // Exclude upper-middle central face zone (28% to 72% width, top 48% height) to prevent locking on face/forehead
-                  const isFaceZone = x >= pw * 0.28 && x <= pw * 0.72 && y <= ph * 0.48;
+            // Measure tip-to-wrist distance relative to MCP-to-wrist distance for 4 fingers
+            const isIndexCurled = distance2D(landmarks[8], wrist) < distance2D(landmarks[5], wrist) * 1.15;
+            const isMiddleCurled = distance2D(landmarks[12], wrist) < distance2D(landmarks[9], wrist) * 1.15;
+            const isRingCurled = distance2D(landmarks[16], wrist) < distance2D(landmarks[13], wrist) * 1.15;
+            const isPinkyCurled = distance2D(landmarks[20], wrist) < distance2D(landmarks[17], wrist) * 1.15;
 
-                  isMatch =
-                    !isFaceZone &&
-                    r > 42 &&
-                    g > 24 &&
-                    b > 14 &&
-                    r > g &&
-                    (r - g) >= 6 &&
-                    lum >= (sensitivity === 'ultra' ? 18 : 26) &&
-                    cb >= 68 &&
-                    cb <= 145 &&
-                    cr >= 122 &&
-                    cr <= 186;
-                }
+            // Alternative pinch gesture (thumb tip to index tip)
+            const pinchDist = distance2D(landmarks[4], landmarks[8]);
+            const isPinch = pinchDist < palmScale * 0.38;
 
-                if (isMatch) {
-                  matchPixelCount++;
-                  sumX += x;
-                  sumY += y;
+            const curledCount =
+              (isIndexCurled ? 1 : 0) +
+              (isMiddleCurled ? 1 : 0) +
+              (isRingCurled ? 1 : 0) +
+              (isPinkyCurled ? 1 : 0);
 
-                  if (x < minX) minX = x;
-                  if (x > maxX) maxX = x;
-                  if (y < minY) minY = y;
-                  if (y > maxY) maxY = y;
+            const isCurrentFist = curledCount >= 3 || isPinch;
+            const isCurrentOpen = curledCount <= 1 && !isPinch;
 
-                  // Topmost apex pixel for precise aiming (prioritize finger tip)
-                  if (y < peakY) {
-                    peakY = y;
-                    peakX = x;
-                  }
-                }
+            // Debounce gesture states for rock-solid stability
+            if (isCurrentFist) {
+              consecutiveFistRef.current += 1;
+              consecutiveOpenRef.current = 0;
+            } else if (isCurrentOpen) {
+              consecutiveOpenRef.current += 1;
+              consecutiveFistRef.current = 0;
+            } else {
+              consecutiveFistRef.current = 0;
+              consecutiveOpenRef.current = 0;
+            }
+
+            const isConfirmedFist = consecutiveFistRef.current >= 2;
+            const isConfirmedOpen = consecutiveOpenRef.current >= 2;
+
+            const currentGestureState = isConfirmedFist
+              ? 'fist'
+              : isConfirmedOpen
+              ? 'open'
+              : 'neutral';
+            setHandGesture(currentGestureState);
+
+            // 2. Cursor Position Calculation (Mirrored for natural mirror view)
+            // Use blended palm center + index MCP as an unshakeable anchor
+            const rawX = (1 - (middleMcp.x * 0.6 + landmarks[5].x * 0.4)) * 100;
+            const rawY = (middleMcp.y * 0.6 + landmarks[5].y * 0.4) * 100;
+
+            const alpha = stabilityMode === 'ultra_steady' ? 0.22 : 0.45;
+            smoothedPos.current = {
+              x: smoothedPos.current.x * (1 - alpha) + rawX * alpha,
+              y: smoothedPos.current.y * (1 - alpha) + rawY * alpha,
+            };
+            setHandPos({ x: smoothedPos.current.x, y: smoothedPos.current.y });
+
+            // 3. Render 3D Holographic Hand Model on the Main AR Overlay Canvas
+            if (arCanvas) {
+              const ctx = arCanvas.getContext('2d');
+              if (ctx) {
+                const cw = arCanvas.width;
+                const ch = arCanvas.height;
+                ctx.clearRect(0, 0, cw, ch);
+
+                const isFistActive = currentGestureState === 'fist';
+                const boneColor = isFistActive ? '#f59e0b' : '#00f0ff';
+                const glowColor = isFistActive ? 'rgba(245, 158, 11, 0.8)' : 'rgba(0, 240, 255, 0.8)';
+
+                // Draw Bones (Connections)
+                ctx.save();
+                ctx.lineWidth = 3.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = boneColor;
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 12;
+
+                HAND_CONNECTIONS.forEach(([startIdx, endIdx]) => {
+                  const p1 = landmarks[startIdx];
+                  const p2 = landmarks[endIdx];
+                  // Mirrored horizontally: x' = (1 - x) * width
+                  const x1 = (1 - p1.x) * cw;
+                  const y1 = p1.y * ch;
+                  const x2 = (1 - p2.x) * cw;
+                  const y2 = p2.y * ch;
+
+                  ctx.beginPath();
+                  ctx.moveTo(x1, y1);
+                  ctx.lineTo(x2, y2);
+                  ctx.stroke();
+                });
+
+                // Draw 21 Holographic Joints (Landmarks)
+                landmarks.forEach((lm, idx) => {
+                  const x = (1 - lm.x) * cw;
+                  const y = lm.y * ch;
+                  const isFingertip = [4, 8, 12, 16, 20].includes(idx);
+                  const isWrist = idx === 0;
+
+                  // Outer glowing ring
+                  ctx.beginPath();
+                  ctx.arc(x, y, isFingertip ? 7 : isWrist ? 8 : 4.5, 0, Math.PI * 2);
+                  ctx.fillStyle = isFistActive ? '#fbbf24' : '#38bdf8';
+                  ctx.shadowColor = glowColor;
+                  ctx.shadowBlur = 10;
+                  ctx.fill();
+
+                  // Center bright node
+                  ctx.beginPath();
+                  ctx.arc(x, y, isFingertip ? 3.5 : 2, 0, Math.PI * 2);
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fill();
+                });
+
+                // Draw Holographic Hand Status Badge over the Hand
+                const palmCenterX = (1 - middleMcp.x) * cw;
+                const palmCenterY = middleMcp.y * ch;
+
+                ctx.font = 'bold 12px Chakra Petch, monospace';
+                const statusBadge = isFistActive
+                  ? '✊ กำมือ (คีบจับวัตถุ)'
+                  : isConfirmedOpen
+                  ? '🖐️ แบมือ (พร้อมคัดแยก)'
+                  : '✋ กำลังตรวจจับ';
+                ctx.fillStyle = isFistActive ? '#fbbf24' : '#38bdf8';
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 8;
+                ctx.fillText(statusBadge, Math.max(10, palmCenterX - 60), Math.max(25, palmCenterY - 45));
+
+                ctx.restore();
               }
             }
 
-            setMarkerPixelCount(matchPixelCount);
+            // 4. Render Picture-in-Picture Vision Monitor
+            if (monitorCanvas) {
+              const mCtx = monitorCanvas.getContext('2d');
+              if (mCtx) {
+                const mw = monitorCanvas.width;
+                const mh = monitorCanvas.height;
+                mCtx.clearRect(0, 0, mw, mh);
 
-            // Minimum pixel threshold to avoid random optical noise
-            const minRequiredPixels = trackMode === 'hand' ? 18 : 10;
+                // Draw mirrored video
+                mCtx.save();
+                mCtx.scale(-1, 1);
+                mCtx.drawImage(video, -mw, 0, mw, mh);
+                mCtx.restore();
 
-            if (matchPixelCount >= minRequiredPixels && peakX !== -1) {
-              const centroidX = sumX / matchPixelCount;
-              const centroidY = sumY / matchPixelCount;
-
-              // For Hand Tracking, apex is the index fingertip!
-              const pointX = trackMode === 'hand' ? peakX * 0.7 + centroidX * 0.3 : centroidX * 0.45 + peakX * 0.55;
-              const pointY = trackMode === 'hand' ? peakY * 0.9 + centroidY * 0.1 : peakY * 0.85 + centroidY * 0.15;
-
-              // Mirror X because selfie video is mirrored
-              const targetX = Math.max(4, Math.min(96, ((pw - pointX) / pw) * 100));
-              const targetY = Math.max(5, Math.min(95, (pointY / ph) * 100));
-
-              rawTargetPos.current = { x: targetX, y: targetY };
-
-              const curX = smoothedPos.current.x;
-              const curY = smoothedPos.current.y;
-              const deltaX = targetX - curX;
-              const deltaY = targetY - curY;
-              const dist = Math.hypot(deltaX, deltaY);
-
-              // Multi-Tier Deadband Filter for Rock-Solid Stability
-              const deadbandThreshold = stabilityMode === 'ultra_steady' ? 1.6 : 0.9;
-
-              if (dist > deadbandThreshold) {
-                // Smooth interpolation factor
-                const lerpFactor = dist > 14 ? 0.6 : dist > 6 ? 0.38 : 0.24;
-                const nextX = curX + deltaX * lerpFactor;
-                const nextY = curY + deltaY * lerpFactor;
-
-                smoothedPos.current = { x: nextX, y: nextY };
-                setHandPos({ x: Number(nextX.toFixed(2)), y: Number(nextY.toFixed(2)) });
-              }
-
-              setIsHandDetected(true);
-              setIsFingerTracked(true);
-              const conf = Math.min(100, Math.max(50, Math.round((matchPixelCount / 90) * 100)));
-              setTrackingConfidence(conf);
-
-              // Render PIP Vision Monitor with Marker Bounding Box & HUD
-              if (monitorCanvas) {
-                const mCtx = monitorCanvas.getContext('2d');
-                if (mCtx) {
-                  const mw = monitorCanvas.width;
-                  const mh = monitorCanvas.height;
-                  mCtx.clearRect(0, 0, mw, mh);
-
-                  // Draw mirrored video frame
-                  mCtx.save();
-                  mCtx.scale(-1, 1);
-                  mCtx.drawImage(video, -mw, 0, mw, mh);
-                  mCtx.restore();
-
-                  // Convert bounding box to mirrored monitor coordinates
-                  const scaleX = mw / pw;
-                  const scaleY = mh / ph;
-                  const boxLeft = (pw - maxX) * scaleX;
-                  const boxTop = minY * scaleY;
-                  const boxWidth = (maxX - minX) * scaleX;
-                  const boxHeight = (maxY - minY) * scaleY;
-
-                  // Theme color for HUD
-                  const markerColorHex =
-                    trackMode === 'red'
-                      ? '#ef4444'
-                      : trackMode === 'green'
-                      ? '#10b981'
-                      : trackMode === 'blue'
-                      ? '#3b82f6'
-                      : trackMode === 'yellow'
-                      ? '#eab308'
-                      : trackMode === 'custom'
-                      ? `rgb(${customColor.r}, ${customColor.g}, ${customColor.b})`
-                      : '#38bdf8';
-
-                  // 1. Draw Bounding Box around detected object
-                  mCtx.strokeStyle = markerColorHex;
-                  mCtx.lineWidth = 2;
-                  mCtx.strokeRect(boxLeft, boxTop, boxWidth, boxHeight);
-
-                  // 2. Corner Bracket Accents
-                  const bLen = Math.min(10, Math.min(boxWidth, boxHeight) / 3);
-                  mCtx.lineWidth = 3;
+                // Draw miniature holographic skeleton in PIP
+                mCtx.save();
+                mCtx.lineWidth = 1.8;
+                mCtx.strokeStyle = currentGestureState === 'fist' ? '#f59e0b' : '#00f0ff';
+                HAND_CONNECTIONS.forEach(([startIdx, endIdx]) => {
+                  const p1 = landmarks[startIdx];
+                  const p2 = landmarks[endIdx];
                   mCtx.beginPath();
-                  // Top-Left
-                  mCtx.moveTo(boxLeft, boxTop + bLen);
-                  mCtx.lineTo(boxLeft, boxTop);
-                  mCtx.lineTo(boxLeft + bLen, boxTop);
-                  // Top-Right
-                  mCtx.moveTo(boxLeft + boxWidth - bLen, boxTop);
-                  mCtx.lineTo(boxLeft + boxWidth, boxTop);
-                  mCtx.lineTo(boxLeft + boxWidth, boxTop + bLen);
+                  mCtx.moveTo((1 - p1.x) * mw, p1.y * mh);
+                  mCtx.lineTo((1 - p2.x) * mw, p2.y * mh);
                   mCtx.stroke();
+                });
 
-                  // 3. Stabilized Laser Crosshair Point
-                  const monX = (smoothedPos.current.x / 100) * mw;
-                  const monY = (smoothedPos.current.y / 100) * mh;
-
-                  mCtx.strokeStyle = markerColorHex;
-                  mCtx.lineWidth = 2.5;
-                  mCtx.beginPath();
-                  mCtx.arc(monX, monY, 11, 0, Math.PI * 2);
-                  mCtx.stroke();
-
-                  // Laser Beam
-                  mCtx.strokeStyle = `${markerColorHex}88`;
-                  mCtx.lineWidth = 1.5;
-                  mCtx.beginPath();
-                  mCtx.moveTo(monX, mh);
-                  mCtx.lineTo(monX, monY);
-                  mCtx.stroke();
-
-                  // Center Laser Core
+                // Landmark points
+                landmarks.forEach((lm) => {
                   mCtx.fillStyle = '#ffffff';
                   mCtx.beginPath();
-                  mCtx.arc(monX, monY, 3, 0, Math.PI * 2);
+                  mCtx.arc((1 - lm.x) * mw, lm.y * mh, 2, 0, Math.PI * 2);
                   mCtx.fill();
+                });
 
-                  // HUD Label Text
-                  mCtx.fillStyle = markerColorHex;
-                  mCtx.font = 'bold 9px monospace';
-                  const labelTitle =
-                    trackMode === 'red'
-                      ? '🔴 RED MARKER'
-                      : trackMode === 'green'
-                      ? '🟢 GREEN MARKER'
-                      : trackMode === 'blue'
-                      ? '🔵 BLUE MARKER'
-                      : trackMode === 'yellow'
-                      ? '🟡 YELLOW MARKER'
-                      : trackMode === 'custom'
-                      ? '🎯 CUSTOM COLOR'
-                      : '✋ HAND TRACK';
-                  mCtx.fillText(`${labelTitle} [${matchPixelCount}px]`, Math.max(4, boxLeft), Math.max(12, boxTop - 4));
-                }
+                // Monitor HUD Text
+                mCtx.fillStyle = '#00f0ff';
+                mCtx.font = 'bold 9px monospace';
+                mCtx.fillText(
+                  `AI HAND 21-PTS [${results.handedness[0]?.[0]?.displayName || 'Right'}]`,
+                  6,
+                  12
+                );
+                mCtx.fillStyle = currentGestureState === 'fist' ? '#fbbf24' : '#34d399';
+                mCtx.fillText(
+                  `GESTURE: ${currentGestureState.toUpperCase()}`,
+                  6,
+                  mh - 6
+                );
+                mCtx.restore();
               }
-            } else {
-              setIsFingerTracked(false);
-              setTrackingConfidence(0);
-
-              // Clear monitor overlay if no marker
-              if (monitorCanvas) {
-                const mCtx = monitorCanvas.getContext('2d');
-                if (mCtx) {
-                  const mw = monitorCanvas.width;
-                  const mh = monitorCanvas.height;
-                  mCtx.save();
-                  mCtx.scale(-1, 1);
-                  mCtx.drawImage(video, -mw, 0, mw, mh);
-                  mCtx.restore();
-
-                  mCtx.fillStyle = '#ef4444';
-                  mCtx.font = 'bold 9px monospace';
-                  mCtx.fillText('⚠️ ค้นหาวัตถุสี...', 10, 20);
-                }
+            }
+          } else {
+            // No hand detected in current frame
+            setIsHandDetected(false);
+            if (arCanvas) {
+              const ctx = arCanvas.getContext('2d');
+              if (ctx) ctx.clearRect(0, 0, arCanvas.width, arCanvas.height);
+            }
+            if (monitorCanvas) {
+              const mCtx = monitorCanvas.getContext('2d');
+              if (mCtx) {
+                const mw = monitorCanvas.width;
+                const mh = monitorCanvas.height;
+                mCtx.save();
+                mCtx.scale(-1, 1);
+                mCtx.drawImage(video, -mw, 0, mw, mh);
+                mCtx.restore();
+                mCtx.fillStyle = '#f59e0b';
+                mCtx.font = 'bold 9px monospace';
+                mCtx.fillText('⚠️ ยกมือขึ้นหน้ากล้อง...', 8, 16);
               }
             }
           }
         }
       }
-      animId = requestAnimationFrame(trackMarker);
+
+      animFrameIdRef.current = requestAnimationFrame(runVisionTracking);
     };
 
-    animId = requestAnimationFrame(trackMarker);
-    return () => cancelAnimationFrame(animId);
-  }, [isCameraActive, trackMode, customColor, sensitivity, stabilityMode]);
+    animFrameIdRef.current = requestAnimationFrame(runVisionTracking);
 
-  // Automated Hands-Free Hover / Dwell Selection using Fingertip Position
+    return () => {
+      isRunning = false;
+      if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+    };
+  }, [isCameraActive, stabilityMode]);
+
+  // Automated Gesture Interaction Engine (Fist to Grab, Open Hand to Drop, or Hover Dwell)
   useEffect(() => {
-    if (!isCameraActive || isFinished) return;
+    if (isFinished) return;
 
-    const dwellInterval = setInterval(() => {
+    const interval = setInterval(() => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const px = rect.left + (handPos.x / 100) * rect.width;
@@ -487,36 +593,54 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
 
       const targetElement = document.elementFromPoint(px, py);
 
-      // Case 1: Hovering over an item card to SELECT it
-      const itemElem = targetElement?.closest('[data-item-card-id]') as HTMLElement | null;
-      const itemId = itemElem?.getAttribute('data-item-card-id');
+      // ACTION 1: Grabbing an item card
+      if (!selectedItemId) {
+        const itemElem = targetElement?.closest('[data-item-card-id]') as HTMLElement | null;
+        const itemId = itemElem?.getAttribute('data-item-card-id');
 
-      if (itemId && !selectedItemId) {
-        const targetItem = currentRound.items.find((i) => i.id === itemId);
-        if (targetItem && !classified[targetItem.id]) {
-          setHoverTarget(itemId);
-          setHoverActionText(`ชี้ค้างเลือก: ${targetItem.name}`);
-          setHoverProgress((prev) => {
-            if (prev >= 100) {
+        if (itemId) {
+          const targetItem = currentRound.items.find((i) => i.id === itemId);
+          if (targetItem && !classified[targetItem.id]) {
+            setHoverTarget(itemId);
+
+            // Condition A: Player clenched fist over the card -> INSTANT GRAB!
+            if (handGesture === 'fist') {
               handleItemSelect(targetItem);
-              return 0;
+              setHoverProgress(0);
+              return;
             }
-            return prev + 22;
-          });
-          return;
+
+            // Condition B: Accessible Hover Dwell fallback (keep hand over card for ~0.8s)
+            setHoverProgress((prev) => {
+              if (prev >= 100) {
+                handleItemSelect(targetItem);
+                return 0;
+              }
+              return prev + 25;
+            });
+            return;
+          }
         }
       }
 
-      // Case 2: Item is already selected, hovering over classification zones
+      // ACTION 2: Dropping selected card into Essential or Non-Essential Zone
       if (selectedItemId) {
         const isEssentialZone =
-          Boolean(targetElement?.closest('[data-zone="essential"]')) || handPos.x <= 30;
+          Boolean(targetElement?.closest('[data-zone="essential"]')) || handPos.x <= 32;
         const isNonEssentialZone =
-          Boolean(targetElement?.closest('[data-zone="non_essential"]')) || handPos.x >= 70;
+          Boolean(targetElement?.closest('[data-zone="non_essential"]')) || handPos.x >= 68;
 
         if (isEssentialZone) {
           setHoverTarget('essential');
-          setHoverActionText('ชี้ค้างส่งเข้า "สิ่งจำเป็น"');
+
+          // Condition A: Player opened hand (แบมือ) inside Essential zone -> DROP!
+          if (handGesture === 'open') {
+            handleClassify('essential');
+            setHoverProgress(0);
+            return;
+          }
+
+          // Condition B: Hover Dwell fallback
           setHoverProgress((prev) => {
             if (prev >= 100) {
               handleClassify('essential');
@@ -529,7 +653,15 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
 
         if (isNonEssentialZone) {
           setHoverTarget('non_essential');
-          setHoverActionText('ชี้ค้างส่งเข้า "รายละเอียดปลีกย่อย"');
+
+          // Condition A: Player opened hand (แบมือ) inside Non-Essential zone -> DROP!
+          if (handGesture === 'open') {
+            handleClassify('non_essential');
+            setHoverProgress(0);
+            return;
+          }
+
+          // Condition B: Hover Dwell fallback
           setHoverProgress((prev) => {
             if (prev >= 100) {
               handleClassify('non_essential');
@@ -541,18 +673,27 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
         }
       }
 
-      // If finger moved away, decay dwell smoothly
+      // If hand moved away from interactive zones, decay dwell smoothly
       setHoverProgress((prev) => (prev > 0 ? Math.max(0, prev - 25) : 0));
       if (hoverProgress <= 0) {
         setHoverTarget(null);
-        setHoverActionText('');
       }
     }, 60);
 
-    return () => clearInterval(dwellInterval);
-  }, [isCameraActive, handPos, selectedItemId, classified, currentRound, isFinished, hoverProgress]);
+    return () => clearInterval(interval);
+  }, [
+    handPos,
+    handGesture,
+    selectedItemId,
+    classified,
+    currentRound,
+    isFinished,
+    hoverProgress,
+    handleItemSelect,
+    handleClassify,
+  ]);
 
-  // Handle pointer / mouse / touch move fallback
+  // Pointer / Mouse / Touch fallback move handler
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -562,60 +703,7 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
     setIsHandDetected(true);
   };
 
-  // Handle Item Select
-  const handleItemSelect = (item: AbstractionItem) => {
-    setSelectedItemId(item.id);
-    setIsGrabbing(true);
-    sfx.playLock();
-  };
-
-  // Classify item (by ID or currently selected)
-  const handleClassify = (target: 'essential' | 'non_essential', specificItemId?: string) => {
-    const targetId = specificItemId || selectedItemId;
-    if (!targetId) return;
-
-    const item = currentRound.items.find((i) => i.id === targetId);
-    if (!item) return;
-
-    const isCorrect = (target === 'essential' && item.isEssential) || (target === 'non_essential' && !item.isEssential);
-
-    if (isCorrect) {
-      const nextCombo = comboStreak + 1;
-      setComboStreak(nextCombo);
-      const earned = 15 + nextCombo * 5;
-      setScore((prev) => prev + earned);
-
-      if (nextCombo >= 2) {
-        sfx.playCombo(nextCombo);
-        setFloatingPopup(`+${earned} XP 🔥 COMBO x${nextCombo}!`);
-      } else {
-        sfx.playCorrect();
-        setFloatingPopup(`+${earned} XP ถูกต้อง!`);
-      }
-
-      setFeedback({
-        message: `ถูกต้อง! "${item.name}" คือ ${item.isEssential ? 'สิ่งจำเป็น' : 'รายละเอียดที่ไม่จำเป็น'} (${item.reason})`,
-        isCorrect: true,
-      });
-    } else {
-      setComboStreak(0);
-      sfx.playError();
-      setIsScreenShaking(true);
-      setTimeout(() => setIsScreenShaking(false), 400);
-      setFloatingPopup('❌ ข้อมูลไม่ตรงหมวด');
-      setFeedback({
-        message: `ยังไม่ถูกต้อง: "${item.name}" แท้จริงแล้วคือ ${item.isEssential ? 'สิ่งจำเป็น' : 'รายละเอียดที่ไม่จำเป็น'} (${item.reason})`,
-        isCorrect: false,
-      });
-    }
-
-    setTimeout(() => setFloatingPopup(null), 1200);
-    setClassified((prev) => ({ ...prev, [item.id]: target }));
-    setSelectedItemId(null);
-    setIsGrabbing(false);
-  };
-
-  // Keyboard shortcut listener
+  // Keyboard shortcut listener ('1' / Left Arrow for Essential, '2' / Right Arrow for Non-Essential)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (selectedItemId) {
@@ -628,7 +716,7 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedItemId, currentRound]);
+  }, [selectedItemId, handleClassify]);
 
   const handleNextRound = () => {
     if (currentRoundIdx < rounds.length - 1) {
@@ -658,13 +746,14 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
   const selectedItem = currentRound.items.find((i) => i.id === selectedItemId);
 
   return (
-    <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 text-slate-100 max-w-4xl mx-auto shadow-2xl transition-transform ${isScreenShaking ? 'scale-[0.99] translate-x-1 ring-2 ring-rose-500/50' : ''}`}>
-      {/* Hidden processing canvas for webcam vision */}
-      <canvas ref={canvasRef} width={160} height={120} className="hidden" />
-
+    <div
+      className={`bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 text-slate-100 max-w-4xl mx-auto shadow-2xl transition-transform ${
+        isScreenShaking ? 'scale-[0.99] translate-x-1 ring-2 ring-rose-500/50' : ''
+      }`}
+    >
       {/* Floating score / combo popup */}
       {floatingPopup && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none px-4 py-2 rounded-2xl bg-slate-950/90 border border-amber-400 text-amber-300 font-bold text-sm sm:text-base shadow-2xl animate-bounce backdrop-blur-md">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none px-4 py-2 rounded-2xl bg-slate-950/95 border border-amber-400 text-amber-300 font-bold text-sm sm:text-base shadow-2xl animate-bounce backdrop-blur-md">
           {floatingPopup}
         </div>
       )}
@@ -672,18 +761,18 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Hand className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+            <Hand className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <h3 className="font-bold text-lg text-white font-['Chakra_Petch'] flex items-center gap-2">
               <span>AR Hand Tracking: คัดแยกสิ่งสำคัญ (Abstraction)</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                ม.1 บทที่ 1
+              <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                MediaPipe AI Vision
               </span>
             </h3>
             <p className="text-xs text-slate-400">
-              ควบคุมด้วยกล้อง AR จับการเคลื่อนไหวมือ หรือใช้เมาส์/สัมผัส/คลิกเลือกได้ 100%
+              โมเดลตรวจจับโครงกระดูกมือ 21 จุด • กำมือ (Fist) เพื่อจับการ์ด • แบมือ (Open) เพื่อปล่อยลงช่อง
             </p>
           </div>
         </div>
@@ -696,118 +785,57 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
             </div>
           )}
 
-          {/* Marker & Color Tracking Mode Selector */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
-            <span className="text-slate-400 pl-1.5 flex items-center gap-1">
-              <Crosshair className="w-3 h-3 text-rose-400" />
-              <span className="hidden sm:inline">โหมดสี:</span>
-            </span>
-            <button
-              onClick={() => {
-                setTrackMode('red');
-                sfx.playLock();
-              }}
-              title="จับวัตถุสีแดง / กระดาษสีแดง / ปากกาแดง (แนะนำ - แม่นยำสูงสุด ไม่หลุด 100%)"
-              className={`px-2 py-0.5 rounded-lg font-bold transition-all text-[10px] flex items-center gap-1 ${
-                trackMode === 'red'
-                  ? 'bg-rose-600 text-white shadow-md ring-1 ring-rose-400'
-                  : 'text-slate-400 hover:text-white'
+          {/* Hand Tracking Gesture Badge */}
+          {isCameraActive && (
+            <div
+              className={`px-2.5 py-1 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all ${
+                handGesture === 'fist'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                  : isHandDetected
+                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                  : 'bg-slate-800 border-slate-700 text-slate-400'
               }`}
             >
-              <span>🔴</span>
-              <span>แดง (แนะนำ)</span>
-            </button>
-            <button
-              onClick={() => {
-                setTrackMode('green');
-                sfx.playLock();
-              }}
-              title="จับวัตถุสีเขียว"
-              className={`px-2 py-0.5 rounded-lg font-bold transition-all text-[10px] flex items-center gap-1 ${
-                trackMode === 'green'
-                  ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>🟢</span>
-              <span>เขียว</span>
-            </button>
-            <button
-              onClick={() => {
-                setTrackMode('blue');
-                sfx.playLock();
-              }}
-              title="จับวัตถุสีน้ำเงิน/ฟ้า"
-              className={`px-2 py-0.5 rounded-lg font-bold transition-all text-[10px] flex items-center gap-1 ${
-                trackMode === 'blue'
-                  ? 'bg-sky-600 text-white shadow-md ring-1 ring-sky-400'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>🔵</span>
-              <span>น้ำเงิน</span>
-            </button>
-            <button
-              onClick={() => {
-                setTrackMode('yellow');
-                sfx.playLock();
-              }}
-              title="จับวัตถุสีเหลือง/ส้ม"
-              className={`px-2 py-0.5 rounded-lg font-bold transition-all text-[10px] flex items-center gap-1 ${
-                trackMode === 'yellow'
-                  ? 'bg-amber-500 text-slate-950 shadow-md ring-1 ring-amber-300'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>🟡</span>
-              <span>เหลือง</span>
-            </button>
-            <button
-              onClick={() => {
-                setTrackMode('hand');
-                sfx.playLock();
-              }}
-              title="จับมือเปล่า (Skin Tracker)"
-              className={`px-2 py-0.5 rounded-lg font-bold transition-all text-[10px] flex items-center gap-1 ${
-                trackMode === 'hand'
-                  ? 'bg-indigo-600 text-white shadow-md ring-1 ring-indigo-400'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <span>✋</span>
-              <span>มือเปล่า</span>
-            </button>
-          </div>
+              <Activity className="w-3 h-3 animate-spin" />
+              <span>
+                {handGesture === 'fist'
+                  ? '✊ กำมือ (คีบจับ)'
+                  : isHandDetected
+                  ? '🖐️ แบมือ (เปิด)'
+                  : '🔍 กำลังค้นหามือ'}
+              </span>
+            </div>
+          )}
 
           {/* Anti-Shake Stability Mode Selector */}
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
             <span className="text-slate-400 pl-1.5 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
+              <Sparkles className="w-3 h-3 text-cyan-400" />
               <span className="hidden sm:inline">กันสั่น:</span>
             </span>
-            <button
-              onClick={() => setStabilityMode('ultra_steady')}
-              className={`px-2 py-0.5 rounded-lg font-mono transition-colors text-[10px] ${
-                stabilityMode === 'ultra_steady'
-                  ? 'bg-emerald-500 text-slate-950 font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              นิ่งสนิท
-            </button>
             <button
               onClick={() => setStabilityMode('smooth')}
               className={`px-2 py-0.5 rounded-lg font-mono transition-colors text-[10px] ${
                 stabilityMode === 'smooth'
-                  ? 'bg-emerald-500 text-slate-950 font-bold'
+                  ? 'bg-cyan-500 text-slate-950 font-bold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               ลื่นไหล
             </button>
+            <button
+              onClick={() => setStabilityMode('ultra_steady')}
+              className={`px-2 py-0.5 rounded-lg font-mono transition-colors text-[10px] ${
+                stabilityMode === 'ultra_steady'
+                  ? 'bg-cyan-500 text-slate-950 font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              นิ่งสนิท
+            </button>
           </div>
 
-          {/* Calibration button */}
+          {/* Calibration / Center button */}
           {isCameraActive && (
             <button
               onClick={() => {
@@ -815,9 +843,9 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                 sfx.playLock();
               }}
               title="ตั้งศูนย์ตำแหน่งกลับมาตรงกลาง"
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-semibold flex items-center gap-1 transition-colors"
             >
-              <Target className="w-3.5 h-3.5 text-amber-400" />
+              <Target className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden sm:inline">ตั้งศูนย์</span>
             </button>
           )}
@@ -825,15 +853,15 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
           {/* Vision Monitor Toggle */}
           <button
             onClick={() => setShowVisionMonitor((prev) => !prev)}
-            title="เปิด/ปิด จอมอนิเตอร์ตรวจจับสี AI"
+            title="เปิด/ปิด จอมอนิเตอร์ AR Vision"
             className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
               showVisionMonitor
-                ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
             }`}
           >
-            <Scan className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden sm:inline">มอนิเตอร์สี AI</span>
+            <Scan className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">มอนิเตอร์ AR</span>
           </button>
 
           <button
@@ -866,27 +894,27 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
         </div>
       </div>
 
-      {/* AR Tracking Dynamic Instructional Guide Bar */}
+      {/* AR Dynamic Guide Banner */}
       {isCameraActive && (
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-slate-950 to-rose-950/40 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-md animate-fade-in">
+        <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-950 to-indigo-950/40 border border-cyan-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-md animate-fade-in">
           <div className="flex items-center gap-2.5">
-            <span className="text-xl p-1.5 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300">
-              {trackMode === 'hand' ? '✋' : trackMode === 'red' ? '🔴' : trackMode === 'green' ? '🟢' : trackMode === 'blue' ? '🔵' : '🎯'}
+            <span className="text-xl p-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300">
+              🖐️
             </span>
             <div className="text-xs">
-              <span className="font-bold text-white">
-                {trackMode === 'hand' ? 'โหมด AR Hand & Finger Tracking: ' : 'โหมด Color / Marker Tracking: '}
-              </span>
+              <span className="font-bold text-white">ท่าทางมือสั่งการ: </span>
               <span className="text-slate-300">
-                {trackMode === 'hand'
-                  ? 'ยกมือและชี้ด้วยนิ้วชี้หน้ากล้องเพื่อเลื่อนเป้าเลเซอร์ หรือสลับเป็นโหมด 🔴 วัตถุสีแดง ที่เมนูด้านบน'
-                  : 'นำวัตถุสีที่เลือก (เช่น ฝาขวด, ปากกา, กระดาษสี) มาขยับหน้ากล้องเพื่อเลื่อนเป้าเลเซอร์ได้แม่นยำ 100%'}
+                1. ขยับมือไปชี้การ์ด 2. <strong className="text-amber-300">กำมือ (✊)</strong> เพื่อจับการ์ด 3. เลื่อนมือไปที่ช่อง 4. <strong className="text-cyan-300">แบมือ (🖐️)</strong> เพื่อปล่อยลงช่อง
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono shrink-0">
-            <span className={`w-2 h-2 rounded-full ${isFingerTracked ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500'}`} />
-            <span>{isFingerTracked ? `ล็อคเป้าหมาย (${markerPixelCount}px)` : 'กำลังค้นหามือ/วัตถุ...'}</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isHandDetected ? 'bg-cyan-400 animate-ping' : 'bg-amber-500 animate-pulse'
+              }`}
+            />
+            <span>{isHandDetected ? `ตรวจพบมือ (${trackingConfidence}%)` : 'ยกมือขึ้นหน้ากล้อง...'}</span>
           </div>
         </div>
       )}
@@ -901,42 +929,42 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
             onClick={() => setAllowSimulationFallback(true)}
             className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 text-[11px] font-semibold whitespace-nowrap"
           >
-            ใช้โหมดจำลองเมาส์
+            ใช้โหมดจำลองเมาส์/สัมผัส
           </button>
         </div>
       )}
 
-      {/* CAMERA REQUIRED SETUP SCREEN (If camera not active and not in simulation fallback) */}
+      {/* Camera Pre-Start Setup Screen */}
       {!isCameraActive && !allowSimulationFallback && !isFinished ? (
         <div className="mt-4 p-6 sm:p-8 rounded-3xl bg-slate-950 border border-slate-800 text-center space-y-5 shadow-2xl relative overflow-hidden">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/10">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/10">
             <Hand className="w-8 h-8 animate-bounce" />
           </div>
 
           <div className="max-w-md mx-auto space-y-1.5">
             <h3 className="text-lg sm:text-xl font-bold text-white font-['Chakra_Petch']">
-              ภารกิจแนวคิดเชิงนามธรรม (Abstraction Mission)
+              ภารกิจแนวคิดเชิงนามธรรม (AR Hand Tracking Abstraction)
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              เลือกเล่นได้ทั้งโหมด <strong>กล้อง AR ตรวจจับนิ้วชี้</strong> หรือ <strong>โหมดคลิกตอบด่วน / ลากการ์ด / แป้นพิมพ์</strong> ได้ทันที
+              ควบคุมด้วยกล้อง <strong>AR Hand Tracking แท้จริง</strong> (ตรวจจับโครงกระดูก 21 จุด) หรือเลือก <strong>โหมดคลิกตอบ / ลากการ์ด / ทัชสกรีน</strong> เป็นตัวเลือกสำรองได้ทันที
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               onClick={startCamera}
-              disabled={isCameraLoading}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+              disabled={isCameraLoading || isModelLoading}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95"
             >
-              {isCameraLoading ? (
+              {isCameraLoading || isModelLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                  <span>กำลังเชื่อมต่อกล้อง...</span>
+                  <span>{isModelLoading ? 'กำลังโหลดโมเดล AI MediaPipe...' : 'กำลังเชื่อมต่อกล้อง...'}</span>
                 </>
               ) : (
                 <>
                   <Video className="w-4 h-4" />
-                  <span>📷 เปิดกล้อง AR ตรวจจับนิ้วจริง</span>
+                  <span>📷 เปิดกล้อง AR ตรวจจับมือ 21 จุด</span>
                 </>
               )}
             </button>
@@ -946,7 +974,7 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
               className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               <MousePointer className="w-4 h-4" />
-              <span>⚡ เล่นทันที (คลิก / ลากการ์ด / แป้นพิมพ์)</span>
+              <span>⚡ เล่นสำรอง (คลิก / ลาก / ทัชสกรีน)</span>
             </button>
           </div>
         </div>
@@ -955,20 +983,22 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
           {/* Situation Banner */}
           <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-amber-300">{currentRound.missionTitle}</span>
-              <span className="text-slate-400">ด่านที่ {currentRoundIdx + 1} / {rounds.length}</span>
+              <span className="font-bold text-cyan-300">{currentRound.missionTitle}</span>
+              <span className="text-slate-400">
+                ด่านที่ {currentRoundIdx + 1} / {rounds.length}
+              </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-300">{currentRound.situation}</p>
-            <p className="text-[11px] text-amber-400/90 font-medium">🎯 {currentRound.targetGoal}</p>
+            <p className="text-[11px] text-cyan-400/90 font-medium">🎯 {currentRound.targetGoal}</p>
           </div>
 
           {/* AR Stage Container */}
           <div
             ref={containerRef}
             onPointerMove={handlePointerMove}
-            className="relative min-h-[380px] sm:min-h-[420px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden select-none touch-none cursor-crosshair shadow-inner"
+            className="relative min-h-[400px] sm:min-h-[440px] bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden select-none touch-none cursor-crosshair shadow-inner"
           >
-            {/* Real Webcam Video Stream with High Clarity */}
+            {/* Real Webcam Video Stream */}
             {isCameraActive && (
               <>
                 <video
@@ -976,20 +1006,29 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                   autoPlay
                   playsInline
                   muted
-                  className="absolute inset-0 w-full h-full object-cover opacity-80 -scale-x-100 filter contrast-110 brightness-95 pointer-events-none"
+                  className="absolute inset-0 w-full h-full object-cover opacity-75 -scale-x-100 filter contrast-110 brightness-95 pointer-events-none"
                 />
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-emerald-500/40 text-[10px] text-emerald-300 font-mono flex items-center gap-1.5 shadow-lg pointer-events-none">
-                  <span className={`w-2 h-2 rounded-full ${isFingerTracked ? 'bg-emerald-400 animate-ping' : 'bg-amber-400 animate-pulse'}`} />
+                {/* 3D Hologram Hand Skeleton Canvas Overlay */}
+                <canvas
+                  ref={arCanvasRef}
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none z-15"
+                />
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/40 text-[10px] text-cyan-300 font-mono flex items-center gap-1.5 shadow-lg pointer-events-none">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isHandDetected ? 'bg-cyan-400 animate-ping' : 'bg-amber-400 animate-pulse'
+                    }`}
+                  />
                   <span>
-                    {isFingerTracked
-                      ? `LIVE AR FINGERTIP AI • ตรวจพบนิ้วชี้ (${trackingConfidence}%)`
-                      : 'LIVE AR WEBCAM • ยกนิ้วชี้ขึ้นหน้ากล้องเพื่อเล็ง'}
+                    {isHandDetected
+                      ? `AR HOLOGRAM HAND • ${handGesture === 'fist' ? '✊ กำมือ (คีบวัตถุ)' : '🖐️ แบมือ'}`
+                      : 'AR SENSOR ACTIVE • ยกมือขึ้นหน้ากล้อง'}
                   </span>
                 </div>
               </>
             )}
 
-            {/* Grid & AR Reticle Background */}
+            {/* Grid Reticle Background */}
             <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-25 pointer-events-none" />
 
             {/* Left Zone: Essential Elements (สิ่งจำเป็น) */}
@@ -1007,17 +1046,11 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1 text-xl">
                 <Eye className="w-5 h-5" />
               </div>
-              <span className="text-xs sm:text-sm font-bold text-emerald-400">
-                สิ่งจำเป็น
-              </span>
-              <span className="text-[10px] text-emerald-300/80">
-                (Essential)
-              </span>
-              <span className="text-[9px] text-slate-400 mt-1 hidden sm:inline">
-                คัดกรองไว้แก้ปัญหา
-              </span>
+              <span className="text-xs sm:text-sm font-bold text-emerald-400">สิ่งจำเป็น</span>
+              <span className="text-[10px] text-emerald-300/80">(Essential)</span>
+              <span className="text-[9px] text-slate-400 mt-1 hidden sm:inline">คัดกรองไว้แก้ปัญหา</span>
               <span className="mt-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold shadow">
-                ◀ กดส่งที่นี่
+                ◀ แบมือปล่อยที่นี่
               </span>
             </div>
 
@@ -1036,17 +1069,11 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
               <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center mb-1 text-xl">
                 <EyeOff className="w-5 h-5" />
               </div>
-              <span className="text-xs sm:text-sm font-bold text-rose-400">
-                รายละเอียดปลีกย่อย
-              </span>
-              <span className="text-[10px] text-rose-300/80">
-                (Non-Essential)
-              </span>
-              <span className="text-[9px] text-slate-400 mt-1 hidden sm:inline">
-                ละทิ้งเพื่อความกระชับ
-              </span>
+              <span className="text-xs sm:text-sm font-bold text-rose-400">รายละเอียดปลีกย่อย</span>
+              <span className="text-[10px] text-rose-300/80">(Non-Essential)</span>
+              <span className="text-[9px] text-slate-400 mt-1 hidden sm:inline">ละทิ้งเพื่อความกระชับ</span>
               <span className="mt-2 text-[10px] px-2 py-0.5 rounded-full bg-rose-500 text-slate-950 font-bold shadow">
-                กดส่งที่นี่ ▶
+                แบมือปล่อยที่นี่ ▶
               </span>
             </div>
 
@@ -1057,12 +1084,10 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                   <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center text-2xl mb-2">
                     ✓
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-emerald-300">
-                    คัดแยกครบทุกรายการแล้ว!
-                  </p>
+                  <p className="text-xs sm:text-sm font-bold text-emerald-300">คัดแยกครบทุกรายการแล้ว!</p>
                   <button
                     onClick={handleNextRound}
-                    className="mt-3 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 mx-auto shadow-lg"
+                    className="mt-3 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 mx-auto shadow-lg"
                   >
                     <span>{currentRoundIdx < rounds.length - 1 ? 'ด่านถัดไป' : 'ดูสรุปคะแนน'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -1094,14 +1119,16 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                             {item.name}
                           </span>
                         </div>
-                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                          isSelected
-                            ? 'bg-amber-500/50 text-white font-bold'
-                            : isHovered
-                            ? 'bg-cyan-500/50 text-white animate-pulse'
-                            : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {isSelected ? 'เลือกอยู่' : isHovered ? 'กำลังล็อค...' : 'เลือก'}
+                        <span
+                          className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                            isSelected
+                              ? 'bg-amber-500/50 text-white font-bold'
+                              : isHovered
+                              ? 'bg-cyan-500/50 text-white animate-pulse'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {isSelected ? '✊ จับอยู่' : isHovered ? 'กำลังล็อค...' : 'กำมือเพื่อจับ'}
                         </span>
                       </div>
 
@@ -1134,13 +1161,13 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
               )}
             </div>
 
-            {/* Live Computer Vision Color & Marker Monitor PIP (Toggleable & Interactive Eyedropper) */}
+            {/* Live AR PIP Vision Monitor */}
             {isCameraActive && showVisionMonitor && (
-              <div className="absolute bottom-12 right-3 z-30 p-2 rounded-2xl bg-slate-950/95 border border-rose-500/40 backdrop-blur-md shadow-2xl flex flex-col items-center max-w-[150px]">
-                <div className="flex items-center justify-between w-full pb-1 px-0.5 text-[9px] font-mono text-rose-400">
+              <div className="absolute bottom-12 right-3 z-30 p-2 rounded-2xl bg-slate-950/95 border border-cyan-500/40 backdrop-blur-md shadow-2xl flex flex-col items-center max-w-[150px]">
+                <div className="flex items-center justify-between w-full pb-1 px-0.5 text-[9px] font-mono text-cyan-400">
                   <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                    COLOR VISION AI
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    AR VISION PIP
                   </span>
                   <button
                     onClick={() => setShowVisionMonitor(false)}
@@ -1150,121 +1177,96 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                     ×
                   </button>
                 </div>
-                <div className="relative group cursor-crosshair">
-                  <canvas
-                    ref={monitorCanvasRef}
-                    width={130}
-                    height={95}
-                    onClick={(e) => {
-                      // Eyedropper: Click on canvas to sample custom color
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const clickX = Math.floor(((e.clientX - rect.left) / rect.width) * 130);
-                      const clickY = Math.floor(((e.clientY - rect.top) / rect.height) * 95);
-                      const ctx = e.currentTarget.getContext('2d');
-                      if (ctx) {
-                        const pixel = ctx.getImageData(clickX, clickY, 1, 1).data;
-                        setCustomColor({ r: pixel[0], g: pixel[1], b: pixel[2] });
-                        setTrackMode('custom');
-                        sfx.playLock();
-                      }
-                    }}
-                    title="คลิกที่จุดใดก็ได้บนจอเพื่อดูดสีวัตถุเป้าหมาย (Eyedropper)"
-                    className="rounded-lg bg-black border border-slate-800"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-slate-950/80 text-[8px] text-center text-slate-300 py-0.5 pointer-events-none">
-                    🎯 คลิกเพื่อดูดสีวัตถุ
-                  </div>
-                </div>
-                <div className="text-[9px] text-slate-300 font-mono mt-1 text-center">
-                  {isFingerTracked ? (
-                    <span className="text-emerald-400 font-bold">✓ ตรวจพบวัตถุสี</span>
-                  ) : (
-                    <span className="text-rose-400">🔴 นำวัตถุสีแดงมาจ่อ</span>
-                  )}
-                </div>
+                <canvas
+                  ref={monitorCanvasRef}
+                  width={130}
+                  height={98}
+                  className="rounded-xl border border-slate-800 bg-slate-900"
+                />
+                <span className="text-[9px] text-slate-400 mt-1 font-mono">
+                  {isHandDetected ? `21-Joints Active` : `รอตรวจจับมือ...`}
+                </span>
               </div>
             )}
 
-            {/* AR Virtual Marker Reticle Cursor with Dwell Ring */}
+            {/* Hologram Hand Pointer & Attached Floating Card */}
             <div
-              className="absolute pointer-events-none transition-all duration-75 -translate-x-1/2 -translate-y-1/2 z-40"
-              style={{ left: `${handPos.x}%`, top: `${handPos.y}%` }}
+              className="absolute pointer-events-none transition-transform duration-75 ease-out z-40"
+              style={{
+                left: `${handPos.x}%`,
+                top: `${handPos.y}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
             >
               <div className="relative flex flex-col items-center">
-                {/* Floating Action Text */}
-                {hoverActionText && (
-                  <div className="mb-1 px-2.5 py-0.5 rounded-full bg-slate-950/95 border border-amber-400 text-amber-300 text-[10px] font-bold font-mono whitespace-nowrap shadow-xl animate-pulse">
-                    {hoverActionText}
+                {/* Floating Card Thumbnail Attached to Hand */}
+                {selectedItem && (
+                  <div className="mb-2 px-2.5 py-1.5 rounded-xl bg-amber-500/90 text-slate-950 font-bold text-[11px] shadow-2xl border border-amber-300 flex items-center gap-1.5 animate-bounce">
+                    <span>{selectedItem.icon}</span>
+                    <span className="truncate max-w-[110px]">{selectedItem.name}</span>
                   </div>
                 )}
 
-                {/* Reticle with circular dwell timer */}
-                <div className="relative w-14 h-14 flex items-center justify-center">
-                  {/* SVG Dwell Progress Ring */}
-                  <svg className="absolute inset-0 w-full h-full -rotate-90">
+                {/* Laser Reticle & Dwell Ring */}
+                <div className="relative w-12 h-12 flex items-center justify-center">
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
                     <circle
-                      cx="28"
-                      cy="28"
-                      r="22"
-                      className="stroke-slate-800/80"
-                      strokeWidth="3.5"
-                      fill="none"
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      className="stroke-slate-800"
+                      strokeWidth="2.5"
+                      fill="transparent"
                     />
                     <circle
-                      cx="28"
-                      cy="28"
-                      r="22"
-                      className={hoverTarget ? 'stroke-amber-400 transition-all' : 'stroke-rose-400'}
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      className="stroke-cyan-400"
                       strokeWidth="3.5"
-                      fill="none"
-                      strokeDasharray={2 * Math.PI * 22}
-                      strokeDashoffset={2 * Math.PI * 22 * (1 - hoverProgress / 100)}
+                      fill="transparent"
+                      strokeDasharray={2 * Math.PI * 20}
+                      strokeDashoffset={2 * Math.PI * 20 * (1 - hoverProgress / 100)}
                       strokeLinecap="round"
                     />
                   </svg>
 
-                  {/* Center Laser Core */}
+                  {/* Center Node */}
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                      isGrabbing || hoverTarget
+                      selectedItemId
                         ? 'bg-amber-500/40 border-2 border-amber-400 shadow-[0_0_15px_#f59e0b] scale-110'
-                        : trackMode === 'red'
-                        ? 'bg-rose-500/30 border-2 border-rose-400 shadow-[0_0_12px_#f43f5e]'
-                        : trackMode === 'green'
-                        ? 'bg-emerald-500/30 border-2 border-emerald-400 shadow-[0_0_12px_#10b981]'
-                        : trackMode === 'blue'
-                        ? 'bg-sky-500/30 border-2 border-sky-400 shadow-[0_0_12px_#0ea5e9]'
-                        : 'bg-amber-500/30 border-2 border-amber-400 shadow-[0_0_12px_#f59e0b]'
+                        : handGesture === 'fist'
+                        ? 'bg-amber-500/30 border-2 border-amber-400 shadow-[0_0_12px_#f59e0b]'
+                        : 'bg-cyan-500/30 border-2 border-cyan-400 shadow-[0_0_12px_#06b6d4]'
                     }`}
                   >
                     <span className="text-base select-none">
-                      {trackMode === 'red'
-                        ? '🔴'
-                        : trackMode === 'green'
-                        ? '🟢'
-                        : trackMode === 'blue'
-                        ? '🔵'
-                        : trackMode === 'yellow'
-                        ? '🟡'
-                        : '🎯'}
+                      {selectedItemId ? '✊' : handGesture === 'fist' ? '✊' : '🖐️'}
                     </span>
                   </div>
                 </div>
 
-                <span className="mt-0.5 text-[9px] font-mono text-rose-300 font-bold bg-slate-950/90 px-1.5 py-0.2 rounded border border-rose-500/40 shadow">
-                  {isFingerTracked ? 'MARKER LOCKED' : 'AR COLOR POINTER'}
+                <span className="mt-0.5 text-[9px] font-mono text-cyan-300 font-bold bg-slate-950/90 px-1.5 py-0.2 rounded border border-cyan-500/40 shadow">
+                  {selectedItemId
+                    ? 'HOLDING CARD'
+                    : handGesture === 'fist'
+                    ? 'FIST DETECTED'
+                    : 'AR HAND 21-PTS'}
                 </span>
               </div>
             </div>
 
             {/* Footer Prompt */}
             <div className="absolute bottom-2 inset-x-4 bg-slate-950/90 backdrop-blur-sm border border-slate-800 rounded-xl px-3 py-1.5 text-[11px] text-slate-400 flex items-center justify-between z-20">
-              <span>🔴 ขยับวัตถุสีแดงเพื่อเล็ง หรือกดปุ่ม <strong>[◀ จำเป็น]</strong> / <strong>[ปลีกย่อย ▶]</strong> หรือกดแป้น <strong>1 / 2</strong></span>
-              <span className="text-amber-400 font-medium">เหลือ {remainingItems.length} รายการ</span>
+              <span>
+                🖐️ กำมือเพื่อจับการ์ด / แบมือเพื่อปล่อย หรือกดปุ่ม <strong>[◀ จำเป็น]</strong> / <strong>[ปลีกย่อย ▶]</strong> หรือกดแป้น <strong>1 / 2</strong>
+              </span>
+              <span className="text-cyan-400 font-medium">เหลือ {remainingItems.length} รายการ</span>
             </div>
           </div>
 
-          {/* Quick Action Dock for Selected Item (Guaranteed accessible control) */}
+          {/* Quick Action Dock for Selected Item */}
           {selectedItem && (
             <div className="p-3 bg-slate-950 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
               <div className="flex items-center gap-2.5">
@@ -1273,9 +1275,7 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                   <div className="text-xs font-bold text-white">
                     กำลังจัดหมวดหมู่: <span className="text-amber-300">{selectedItem.name}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400">
-                    หมวด: {selectedItem.category}
-                  </div>
+                  <div className="text-[10px] text-slate-400">หมวด: {selectedItem.category}</div>
                 </div>
               </div>
 
@@ -1285,14 +1285,14 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
                   className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all hover:scale-105"
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>◀ เป็นสิ่งจำเป็น</span>
+                  <span>◀ เป็นสิ่งจำเป็น (แบมือ)</span>
                 </button>
                 <button
                   onClick={() => handleClassify('non_essential')}
                   className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all hover:scale-105"
                 >
                   <EyeOff className="w-3.5 h-3.5" />
-                  <span>รายละเอียดปลีกย่อย ▶</span>
+                  <span>รายละเอียดปลีกย่อย ▶ (แบมือ)</span>
                 </button>
               </div>
             </div>
@@ -1319,7 +1319,7 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
       ) : (
         /* Finished Screen */
         <div className="mt-8 py-6 text-center space-y-5">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-4xl shadow-xl">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-4xl shadow-xl shadow-cyan-500/10">
             🏆
           </div>
 
@@ -1332,7 +1332,7 @@ export const Game1ARHandTracking: React.FC<Game1ARHandTrackingProps> = ({ onComp
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold text-sm">
             <Sparkles className="w-4 h-4" />
             <span>ได้รับ +250 XP พิชิตแนวคิดเชิงนามธรรม!</span>
           </div>

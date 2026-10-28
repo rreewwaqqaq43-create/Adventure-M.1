@@ -13,6 +13,7 @@ export interface User {
   password?: string;
   avatarUrl?: string;
   createdAt: string;
+  approvalStatus?: 'approved' | 'pending' | 'rejected';
 }
 
 export interface StudentProfile {
@@ -24,6 +25,9 @@ export interface StudentProfile {
   xp: number;
   level: number;
   totalCompletedLessons: number;
+  assignedTeacherId?: string; // ครูผู้รับผิดชอบที่กดตอบรับ
+  assignedTeacherName?: string; // ชื่อครูผู้รับผิดชอบ
+  approvalDate?: string; // วันที่ครูกดตอบรับ
 }
 
 export interface TeacherProfile {
@@ -33,6 +37,8 @@ export interface TeacherProfile {
   subjectTaught: string; // รายวิชาที่สอน
   phoneNumber?: string; // เบอร์โทรศัพท์
   classesManaged?: string[]; // ห้องเรียนที่ดูแล
+  approvedByAdminId?: string; // Admin ผู้อนุมัติ
+  approvalDate?: string; // วันที่ Admin อนุมัติ
 }
 
 export interface ClassRoom {

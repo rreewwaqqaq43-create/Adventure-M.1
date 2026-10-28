@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { User, UserRole, StudentProfile, TeacherProfile } from '../types';
-import { StorageService } from '../services/storage';
+import { StorageService, INITIAL_ADMIN_USER, INITIAL_SUPERADMIN_TEACHER2, INITIAL_TEACHER_T01, INITIAL_STUDENT_S01 } from '../services/storage';
 import { signInWithGoogle } from '../services/auth';
 import {
   X,
@@ -83,6 +83,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
   const [showLoginPass, setShowLoginPass] = useState(false);
 
+  // Quick-Fill Demo Account (บันทึกจำไว้สำหรับทดสอบระบบ)
+  const fillDemoAccount = (role: 'admin' | 'natthicha' | 'teacher' | 'student') => {
+    setErrorMsg(null);
+    setMode('login');
+    if (role === 'admin') {
+      setLoginMethod('email');
+      setEmail('Admin01');
+      setPassword('Admin123');
+      setSuccessMsg('⚡ โหลดรหัสผู้ดูแลระบบ Admin: Admin01 / รหัสผ่าน Admin123 เรียบร้อย');
+    } else if (role === 'natthicha') {
+      setLoginMethod('email');
+      setEmail('6711508546@chandra.ac.th');
+      setPassword('000863677');
+      setSuccessMsg('⚡ โหลดรหัสผู้สอนคนที่ 2: อาจารย์ณัฐทิชา บัวสาย (6711508546 / 000863677) สิทธิ์ Super Admin เรียบร้อย');
+    } else if (role === 'teacher') {
+      setLoginMethod('id');
+      setLoginRole('teacher');
+      setIdentifierId('T01');
+      setPassword('T12345');
+      setSuccessMsg('⚡ โหลดรหัสจำลองผู้สอนคนที่ 1: T01 / รหัสผ่าน T12345 เรียบร้อย');
+    } else {
+      setLoginMethod('id');
+      setLoginRole('student');
+      setIdentifierId('S01');
+      setPassword('S12345');
+      setSuccessMsg('⚡ โหลดรหัสจำลองนักเรียน: S01 / รหัสผ่าน S12345 เรียบร้อย');
+    }
+    setTimeout(() => setSuccessMsg(null), 3500);
+  };
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -90,56 +120,141 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const allUsers = StorageService.getUsers();
 
     if (loginMethod === 'email') {
-      if (!email.trim() || !password.trim()) {
-        setErrorMsg('กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน');
-        return;
-      }
-      const found = allUsers.find(
-        (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-      );
-      if (found) {
-        // Verify password
-        const isPassOk = StorageService.verifyUserPassword(found.id, password);
+      const cleanEmail = email.trim().toLowerCase();
+
+      // 1. Support Admin01 directly: Admin01 / Admin123
+      if (
+        cleanEmail === 'admin01' ||
+        cleanEmail === 'admin' ||
+        cleanEmail === 'admin01@school.ac.th'
+      ) {
+        const adminUser = allUsers.find(
+          (u) =>
+            u.id === 'admin-1' ||
+            u.email.toLowerCase() === 'admin01@school.ac.th'
+        ) || INITIAL_ADMIN_USER;
+
+        const isPassOk =
+          password.trim() === 'Admin123' ||
+          StorageService.verifyUserPassword(adminUser.id, password.trim());
+
         if (!isPassOk) {
-          setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง! หากจำรหัสผ่านไม่ได้ กรุณากด "ลืมรหัสผ่าน?" ด้านบนเพื่อกู้คืนผ่านอีเมล');
+          setErrorMsg('❌ รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง (รหัสคือ Admin123)');
           return;
         }
 
-        setSuccessMsg(`ยินดีต้อนรับกลับคุณ ${found.name}!`);
+        setSuccessMsg(`ยินดีต้อนรับกลับคุณ ${adminUser.name}!`);
         setTimeout(() => {
-          onAuthSuccess(found);
+          onAuthSuccess(adminUser);
           onClose();
-        }, 600);
-      } else {
-        // Create demo account on the fly if not exists
-        const newUser: User = {
-          id: `user-${Date.now()}`,
-          email: email.trim(),
-          name: email.split('@')[0],
-          role: email.includes('kru') || email.includes('teacher') ? 'teacher' : 'student',
-          password: password.trim() || 'password123',
-          avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`,
-          createdAt: new Date().toISOString(),
-        };
-        StorageService.addUser(newUser);
-        if (newUser.role === 'student') {
-          StorageService.updateStudentProfile({
-            userId: newUser.id,
-            studentId: '6701' + Math.floor(100 + Math.random() * 900),
-            gradeLevel: 'ม.1',
-            classroom: 'ม.1/1',
-            seatNumber: 15,
-            xp: 100,
-            level: 1,
-            totalCompletedLessons: 0,
-          });
-        }
-        setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับคุณ ${newUser.name}!`);
-        setTimeout(() => {
-          onAuthSuccess(newUser);
-          onClose();
-        }, 600);
+        }, 500);
+        return;
       }
+
+      // 2. Support อาจารย์ณัฐทิชา บัวสาย (ผู้สอนคนที่ 2 / Super Admin): 6711508546@chandra.ac.th / 000863677
+      if (
+        cleanEmail === '6711508546@chandra.ac.th' ||
+        cleanEmail === '6711508546' ||
+        cleanEmail === 'ผู้ดูแลระบบ' ||
+        cleanEmail === 'อาจารย์ณัฐทิชา' ||
+        cleanEmail === 'ณัฐทิชา' ||
+        cleanEmail === 't02'
+      ) {
+        const natthichaUser = allUsers.find(
+          (u) =>
+            u.id === 'teacher-2-natthicha' ||
+            u.email.toLowerCase() === '6711508546@chandra.ac.th'
+        ) || INITIAL_SUPERADMIN_TEACHER2;
+
+        const isPassOk =
+          password.trim() === '000863677' ||
+          StorageService.verifyUserPassword(natthichaUser.id, password.trim());
+
+        if (!isPassOk) {
+          setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง (รหัสเริ่มต้นของอาจารย์ณัฐทิชาคือ 000863677)');
+          return;
+        }
+
+        setSuccessMsg(`ยินดีต้อนรับกลับคุณ ${natthichaUser.name} (ผู้สอนคนที่ 2 - Super Admin)!`);
+        setTimeout(() => {
+          onAuthSuccess(natthichaUser);
+          onClose();
+        }, 500);
+        return;
+      }
+
+      // 3. Support Teacher T01 via email
+      if (cleanEmail === 't01' || cleanEmail === 't01@school.ac.th' || cleanEmail === 'teacher01') {
+        const teacherUser = allUsers.find(
+          (u) => u.id === 'teacher-t01' || u.email.toLowerCase() === 't01@school.ac.th'
+        ) || INITIAL_TEACHER_T01;
+        const isPassOk = password.trim() === 'T12345' || StorageService.verifyUserPassword(teacherUser.id, password.trim());
+        if (!isPassOk) {
+          setErrorMsg('❌ รหัสผ่านผู้สอนไม่ถูกต้อง (รหัสผ่านคือ T12345)');
+          return;
+        }
+        setSuccessMsg(`ยินดีต้อนรับกลับคุณ ${teacherUser.name}!`);
+        setTimeout(() => {
+          onAuthSuccess(teacherUser);
+          onClose();
+        }, 500);
+        return;
+      }
+
+      // 4. Support Student S01 via email
+      if (cleanEmail === 's01' || cleanEmail === 's01@school.ac.th' || cleanEmail === 'student01') {
+        const studentUser = allUsers.find(
+          (u) => u.id === 'student-s01' || u.email.toLowerCase() === 's01@school.ac.th'
+        ) || INITIAL_STUDENT_S01;
+        const isPassOk = password.trim() === 'S12345' || StorageService.verifyUserPassword(studentUser.id, password.trim());
+        if (!isPassOk) {
+          setErrorMsg('❌ รหัสผ่านนักเรียนไม่ถูกต้อง (รหัสผ่านคือ S12345)');
+          return;
+        }
+        setSuccessMsg(`ยินดีต้อนรับกลับคุณ ${studentUser.name}!`);
+        setTimeout(() => {
+          onAuthSuccess(studentUser);
+          onClose();
+        }, 500);
+        return;
+      }
+
+      const found = allUsers.find(
+        (u) => u.email.toLowerCase() === cleanEmail
+      );
+      if (!found) {
+        setErrorMsg('❌ ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบอีเมล หรือกดสมัครสมาชิกใหม่');
+        return;
+      }
+
+      // Verify password
+      const isPassOk = StorageService.verifyUserPassword(found.id, password.trim());
+      if (!isPassOk) {
+        setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง (หรือกด "ลืมรหัสผ่าน?" ด้านบน)');
+        return;
+      }
+
+      // Check approval status
+      if (found.role !== 'admin') {
+        if (found.approvalStatus === 'pending') {
+          if (found.role === 'teacher') {
+            setErrorMsg('⏳ บัญชีครูผู้สอนนี้กำลังรอการอนุมัติจากผู้ดูแลระบบ (Admin) จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+          } else {
+            setErrorMsg('⏳ บัญชีนักเรียนนี้กำลังรอคุณครูกดตอบรับเข้าห้องเรียน จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+          }
+          return;
+        }
+        if (found.approvalStatus === 'rejected') {
+          setErrorMsg('❌ บัญชีนี้ไม่ผ่านการอนุมัติ กรุณาติดต่อสถานศึกษาหรือผู้ดูแลระบบ');
+          return;
+        }
+      }
+
+      setSuccessMsg(`ยินดีต้อนรับกลับคุณ ${found.name}!`);
+      setTimeout(() => {
+        onAuthSuccess(found);
+        onClose();
+      }, 500);
     } else {
       // Login by ID
       if (!identifierId.trim() || !password.trim()) {
@@ -150,74 +265,139 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (loginRole === 'student') {
         const studentProfiles = StorageService.getStudentProfiles();
         const foundProfile = studentProfiles.find(
-          (p) => p.studentId.toLowerCase() === identifierId.trim().toLowerCase()
+          (p) => p.studentId.trim().toLowerCase() === identifierId.trim().toLowerCase()
         );
-        if (foundProfile) {
-          const user = allUsers.find((u) => u.id === foundProfile.userId);
-          if (user) {
-            const isPassOk = StorageService.verifyUserPassword(user.id, password);
-            if (!isPassOk) {
-              setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง (หรือติดต่อครูผู้สอน)');
-              return;
-            }
-            setSuccessMsg(`เข้าสู่ระบบในฐานะนักเรียน: ${user.name}`);
-            setTimeout(() => {
-              onAuthSuccess(user);
-              onClose();
-            }, 600);
+        if (!foundProfile) {
+          setErrorMsg('❌ ไม่พบรหัสประจำตัวนักเรียนนี้ในระบบ กรุณาตรวจสอบรหัส หรือกดสมัครสมาชิกใหม่');
+          return;
+        }
+
+        const user = allUsers.find((u) => u.id === foundProfile.userId);
+        if (!user) {
+          setErrorMsg('❌ ไม่พบบัญชีผู้ใช้นักเรียนที่ผูกกับรหัสนี้ในระบบ');
+          return;
+        }
+
+        const isPassOk = StorageService.verifyUserPassword(user.id, password.trim());
+        if (!isPassOk) {
+          setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง');
+          return;
+        }
+
+        // Check student approval status
+        if (user.approvalStatus === 'pending') {
+          setErrorMsg('⏳ บัญชีนักเรียนนี้กำลังรอคุณครูกดตอบรับเข้าห้องเรียน จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+          return;
+        }
+        if (user.approvalStatus === 'rejected') {
+          setErrorMsg('❌ บัญชีนี้ไม่ผ่านการอนุมัติ กรุณาติดต่อสถานศึกษาหรือผู้ดูแลระบบ');
+          return;
+        }
+
+        setSuccessMsg(`เข้าสู่ระบบสำเร็จ: ${user.name} (${foundProfile.classroom} เลขที่ ${foundProfile.seatNumber})`);
+        setTimeout(() => {
+          onAuthSuccess(user);
+          onClose();
+        }, 500);
+      } else {
+        // Teacher by ID (or Admin01)
+        const cleanId = identifierId.trim().toLowerCase();
+
+        // 1. Support Admin01 directly
+        if (
+          cleanId === 'admin01' ||
+          cleanId === 'admin' ||
+          cleanId === 'admin01@school.ac.th'
+        ) {
+          const adminUser = allUsers.find(
+            (u) =>
+              u.id === 'admin-1' ||
+              u.email.toLowerCase() === 'admin01@school.ac.th'
+          ) || INITIAL_ADMIN_USER;
+
+          const isPassOk =
+            password.trim() === 'Admin123' ||
+            StorageService.verifyUserPassword(adminUser.id, password.trim());
+          if (!isPassOk) {
+            setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง (รหัสผ่าน Admin คือ Admin123)');
             return;
           }
+
+          setSuccessMsg(`เข้าสู่ระบบในฐานะผู้ดูแลระบบ: ${adminUser.name}`);
+          setTimeout(() => {
+            onAuthSuccess(adminUser);
+            onClose();
+          }, 500);
+          return;
         }
-        // Fallback matched or created
-        const tempUser: User = {
-          id: `stu-${identifierId}`,
-          email: `${identifierId}@student.school.ac.th`,
-          name: `นักเรียน รหัส ${identifierId}`,
-          role: 'student',
-          password: password.trim() || 'password123',
-          avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${identifierId}`,
-          createdAt: new Date().toISOString(),
-        };
-        StorageService.addUser(tempUser);
-        StorageService.updateStudentProfile({
-          userId: tempUser.id,
-          studentId: identifierId,
-          gradeLevel: 'ม.1',
-          classroom: 'ม.1/1',
-          seatNumber: 1,
-          xp: 150,
-          level: 1,
-          totalCompletedLessons: 0,
-        });
-        setSuccessMsg(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับนักเรียนรหัส ${identifierId}`);
-        setTimeout(() => {
-          onAuthSuccess(tempUser);
-          onClose();
-        }, 600);
-      } else {
-        // Teacher by ID
+
+        // 2. Support Teacher 2 Natthicha (Super Admin)
+        if (
+          cleanId === '6711508546@chandra.ac.th' ||
+          cleanId === '6711508546' ||
+          cleanId === 'ผู้ดูแลระบบ' ||
+          cleanId === 'อาจารย์ณัฐทิชา' ||
+          cleanId === 'ณัฐทิชา' ||
+          cleanId === 't02'
+        ) {
+          const natthichaUser = allUsers.find(
+            (u) =>
+              u.id === 'teacher-2-natthicha' ||
+              u.email.toLowerCase() === '6711508546@chandra.ac.th'
+          ) || INITIAL_SUPERADMIN_TEACHER2;
+
+          const isPassOk =
+            password.trim() === '000863677' ||
+            StorageService.verifyUserPassword(natthichaUser.id, password.trim());
+          if (!isPassOk) {
+            setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง (รหัสผ่านของอาจารย์ณัฐทิชาคือ 000863677)');
+            return;
+          }
+
+          setSuccessMsg(`เข้าสู่ระบบสำเร็จ: ${natthichaUser.name} (ผู้สอนคนที่ 2 - Super Admin)`);
+          setTimeout(() => {
+            onAuthSuccess(natthichaUser);
+            onClose();
+          }, 500);
+          return;
+        }
+
         const teacherProfiles = StorageService.getTeacherProfiles();
         const foundProfile = teacherProfiles.find(
-          (p) => p.teacherId.toLowerCase() === identifierId.trim().toLowerCase()
+          (p) => p.teacherId.trim().toLowerCase() === cleanId
         );
-        let teacherUser = foundProfile ? allUsers.find((u) => u.id === foundProfile.userId) : null;
+        if (!foundProfile) {
+          setErrorMsg('❌ ไม่พบรหัสประจำตัวครูผู้สอนนี้ในระบบ กรุณาตรวจสอบรหัส หรือกดสมัครสมาชิกใหม่');
+          return;
+        }
+
+        const teacherUser = allUsers.find((u) => u.id === foundProfile.userId);
         if (!teacherUser) {
-          teacherUser = allUsers.find((u) => u.role === 'teacher') || allUsers[0];
+          setErrorMsg('❌ ไม่พบบัญชีครูผู้สอนที่ผูกกับรหัสนี้ในระบบ');
+          return;
         }
 
-        if (teacherUser) {
-          const isPassOk = StorageService.verifyUserPassword(teacherUser.id, password);
-          if (!isPassOk) {
-            setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง');
-            return;
-          }
+        const isPassOk = StorageService.verifyUserPassword(teacherUser.id, password.trim());
+        if (!isPassOk) {
+          setErrorMsg('❌ รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบรหัสผ่านอีกครั้ง');
+          return;
         }
 
-        setSuccessMsg(`เข้าสู่ระบบในฐานะครูผู้สอน: ${teacherUser?.name || 'ครูผู้สอน'}`);
+        // Check teacher approval status
+        if (teacherUser.approvalStatus === 'pending') {
+          setErrorMsg('⏳ บัญชีครูผู้สอนนี้กำลังรอการอนุมัติจากผู้ดูแลระบบ (Admin) จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+          return;
+        }
+        if (teacherUser.approvalStatus === 'rejected') {
+          setErrorMsg('❌ บัญชีนี้ไม่ผ่านการอนุมัติ กรุณาติดต่อสถานศึกษาหรือผู้ดูแลระบบ');
+          return;
+        }
+
+        setSuccessMsg(`เข้าสู่ระบบในฐานะครูผู้สอน: ${teacherUser.name}`);
         setTimeout(() => {
-          if (teacherUser) onAuthSuccess(teacherUser);
+          onAuthSuccess(teacherUser);
           onClose();
-        }, 600);
+        }, 500);
       }
     }
   };
@@ -242,8 +422,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       email: regEmail.trim(),
       name: fullName.trim(),
       role: roleToRegister,
-      avatarUrl: profilePic.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${fullName}`,
+      avatarUrl: profilePic.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(fullName.trim())}`,
       createdAt: new Date().toISOString(),
+      approvalStatus: 'pending',
     };
 
     StorageService.addUser(newUser);
@@ -260,74 +441,124 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         totalCompletedLessons: 0,
       };
       StorageService.updateStudentProfile(newStudentProfile);
+      setSuccessMsg('ลงทะเบียนนักเรียนเรียบร้อยแล้ว บัญชีของคุณอยู่ระหว่างรอคุณครูประจำชั้นกดตอบรับเข้าห้องเรียน กรุณารอคุณครูอนุมัติก่อนเข้าสู่ระบบ');
+      setTimeout(() => {
+        setMode('login');
+      }, 2000);
     } else {
-      // Teacher Profile
-      // Teacher profile handled in storage
+      StorageService.updateTeacherProfile({
+        userId: newUserId,
+        teacherId: `T-${Math.floor(100 + Math.random() * 900)}`,
+        schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
+        subjectTaught: 'เทคโนโลยี (วิทยาการคำนวณ) ม.1',
+        classesManaged: ['ม.1/1', 'ม.1/2'],
+      });
+      setSuccessMsg('ลงทะเบียนครูผู้สอนเรียบร้อยแล้ว บัญชีของคุณอยู่ระหว่างรอการอนุมัติจากผู้ดูแลระบบ (Admin) กรุณารอการตรวจสอบก่อนเข้าใช้งาน');
+      setTimeout(() => {
+        setMode('login');
+      }, 2000);
+    }
+  };
+
+  const handleGoogleAuthSuccess = (emailToLogin: string, customName?: string, role: UserRole = 'student') => {
+    const cleanEmail = emailToLogin.trim().toLowerCase();
+    const displayName = customName?.trim() || cleanEmail.split('@')[0] || (role === 'teacher' ? 'คุณครู Google' : 'นักเรียน Google');
+
+    const allUsers = StorageService.getUsers();
+    let matchedUser = allUsers.find(
+      (u) => u.email.toLowerCase() === cleanEmail
+    );
+
+    if (!matchedUser) {
+      matchedUser = {
+        id: `google-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        email: cleanEmail,
+        name: displayName,
+        role: role,
+        avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
+        createdAt: new Date().toISOString(),
+        approvalStatus: 'pending',
+      };
+      StorageService.addUser(matchedUser);
+
+      if (role === 'teacher') {
+        StorageService.updateTeacherProfile({
+          userId: matchedUser.id,
+          teacherId: `T-${Math.floor(100 + Math.random() * 900)}`,
+          schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
+          subjectTaught: 'เทคโนโลยี (วิทยาการคำนวณ) ม.1',
+          classesManaged: ['ม.1/1', 'ม.1/2'],
+        });
+      } else {
+        StorageService.updateStudentProfile({
+          userId: matchedUser.id,
+          studentId: '6701' + Math.floor(100 + Math.random() * 900),
+          gradeLevel: 'ม.1',
+          classroom: 'ม.1/1',
+          seatNumber: 10,
+          xp: 150,
+          level: 1,
+          totalCompletedLessons: 0,
+        });
+      }
     }
 
-    setSuccessMsg('สมัครสมาชิกสำเร็จ! กำลังเข้าสู่ระบบ...');
+    // Check approval status
+    if (matchedUser.role !== 'admin') {
+      if (matchedUser.approvalStatus === 'pending') {
+        if (matchedUser.role === 'teacher') {
+          setErrorMsg('⏳ บัญชีครูผู้สอนนี้กำลังรอการอนุมัติจากผู้ดูแลระบบ (Admin) จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+        } else {
+          setErrorMsg('⏳ บัญชีนักเรียนนี้กำลังรอคุณครูกดตอบรับเข้าห้องเรียน จึงยังไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
+        }
+        return;
+      }
+      if (matchedUser.approvalStatus === 'rejected') {
+        setErrorMsg('❌ บัญชีนี้ไม่ผ่านการอนุมัติ กรุณาติดต่อสถานศึกษาหรือผู้ดูแลระบบ');
+        return;
+      }
+    }
+
+    setSuccessMsg(`เข้าสู่ระบบด้วย Google สำเร็จ: ${matchedUser.name}`);
     setTimeout(() => {
-      onAuthSuccess(newUser);
+      onAuthSuccess(matchedUser!);
       onClose();
-    }, 800);
+    }, 450);
   };
 
   const handleGoogleSignIn = async () => {
     setErrorMsg(null);
     setIsGoogleLoading(true);
     try {
-      const res = await signInWithGoogle();
-      if (!res) {
-        // User closed or cancelled the Google popup window quietly
-        setIsGoogleLoading(false);
+      const res: any = await signInWithGoogle();
+      if (res && res.success && res.firebaseUser) {
+        const fbUser = res.firebaseUser;
+        const email = fbUser.email || `google-user-${fbUser.uid.slice(0, 6)}@gmail.com`;
+        const displayName = fbUser.displayName || 'ผู้ใช้งาน Google';
+        handleGoogleAuthSuccess(email, displayName, mode === 'register' ? roleToRegister : loginRole);
         return;
       }
-      if (res && res.firebaseUser) {
-        const fbUser = res.firebaseUser;
-        const allUsers = StorageService.getUsers();
-        let matchedUser = allUsers.find(
-          (u) => u.email.toLowerCase() === (fbUser.email || '').toLowerCase()
-        );
 
-        if (!matchedUser) {
-          matchedUser = {
-            id: `google-${fbUser.uid}`,
-            email: fbUser.email || 'user@google.com',
-            name: fbUser.displayName || 'ผู้ใช้งาน Google',
-            role: 'student',
-            avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
-            createdAt: new Date().toISOString(),
-          };
-          StorageService.addUser(matchedUser);
-          StorageService.updateStudentProfile({
-            userId: matchedUser.id,
-            studentId: '6701' + Math.floor(100 + Math.random() * 900),
-            gradeLevel: 'ม.1',
-            classroom: 'ม.1/1',
-            seatNumber: 10,
-            xp: 150,
-            level: 1,
-            totalCompletedLessons: 0,
-          });
+      if (res && !res.success) {
+        if (
+          res.isAccessDenied ||
+          res.isTestingMode ||
+          res.errorMessage?.includes('403') ||
+          res.errorMessage?.includes('access_denied') ||
+          res.errorMessage?.includes('ยืนยันตัวตน')
+        ) {
+          setErrorMsg('❌ การเข้าสู่ระบบด้วย Google ไม่สำเร็จ: แอปอยู่ในระหว่างทดสอบของ Google (Error 403: access_denied) กรุณาเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน');
+        } else if (res.popupBlocked) {
+          setErrorMsg('❌ เบราว์เซอร์บล็อกหน้าต่างป็อปอัปของ Google กรุณาอนุญาตป็อปอัป หรือเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน');
+        } else if (res.cancelled) {
+          setErrorMsg('หน้าต่างเข้าสู่ระบบ Google ถูกปิด กรุณาลองใหม่อีกครั้ง หรือเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน');
+        } else {
+          setErrorMsg(res.errorMessage || 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ');
         }
-
-        setSuccessMsg(`เข้าสู่ระบบด้วย Google สำเร็จ: ${matchedUser.name}`);
-        setTimeout(() => {
-          onAuthSuccess(matchedUser!);
-          onClose();
-        }, 600);
       }
     } catch (err: any) {
-      if (
-        err?.code === 'auth/popup-closed-by-user' ||
-        err?.code === 'auth/cancelled-popup-request' ||
-        err?.message?.includes('popup-closed-by-user')
-      ) {
-        // User intentionally closed the popup
-        return;
-      }
       console.warn('Google Sign In Warning:', err);
-      setErrorMsg(err?.message || 'การเข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองใหม่');
+      setErrorMsg('เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sign-In กรุณาใช้อีเมลและรหัสผ่าน');
     } finally {
       setIsGoogleLoading(false);
     }
@@ -397,6 +628,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <span>สมัครสมาชิก</span>
           </button>
         </div>
+
+
 
         {/* Alerts */}
         {errorMsg && (
@@ -573,13 +806,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              {/* Official Google Sign-In button per workspace skill */}
+              {/* Official Google Sign-In button */}
               <button
                 id="google-signin-btn"
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={isGoogleLoading}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white hover:bg-slate-100 text-slate-800 font-medium rounded-xl border border-slate-300 shadow-sm transition-all hover:scale-[1.01] text-sm disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white hover:bg-slate-100 text-slate-800 font-medium rounded-xl border border-slate-300 shadow-sm transition-all hover:scale-[1.01] text-xs sm:text-sm disabled:opacity-50"
               >
                 <svg className="w-4 h-4" viewBox="0 0 48 48">
                   <path
@@ -599,7 +832,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
                   ></path>
                 </svg>
-                <span>{isGoogleLoading ? 'กำลังเชื่อมต่อ Google...' : 'Sign in with Google'}</span>
+                <span>{isGoogleLoading ? 'กำลังเชื่อมต่อ Google...' : 'เข้าสู่ระบบด้วย Google'}</span>
               </button>
             </div>
           ) : (

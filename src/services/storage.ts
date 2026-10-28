@@ -42,6 +42,7 @@ import {
   syncGlobalStageLocksToFirestore,
   fetchGlobalStageLocksFromFirestore,
   syncQuizToFirestore,
+  syncUserApprovalToFirestore,
 } from './firebase';
 export { GameStorageService };
 
@@ -120,6 +121,20 @@ export async function initializeDatabaseSync(): Promise<{ synced: boolean; messa
         }
         if (Array.isArray(d.student_profiles) && d.student_profiles.length > 0) {
           setLocal('student_profiles', d.student_profiles);
+        }
+        if (Array.isArray(d.teacher_profiles) && d.teacher_profiles.length > 0) {
+          setLocal('teacher_profiles', d.teacher_profiles);
+        }
+        if (Array.isArray(d.users) && d.users.length > 0) {
+          setLocal('users', d.users);
+        }
+        if (Array.isArray(d.progress_list) && d.progress_list.length > 0) {
+          setLocal('progress', d.progress_list);
+        }
+        // Always ensure demo students are seeded if student count is small
+        const currentStdProfiles = getLocal<StudentProfile[]>('student_profiles', []);
+        if (currentStdProfiles.length < 10) {
+          StorageService.seedDemoStudents(false);
         }
         serverLoaded = true;
       }
@@ -825,16 +840,228 @@ const INITIAL_BADGES: Badge[] = [
 // -------------------------------------------------------------
 export const INITIAL_ADMIN_USER: User = {
   id: 'admin-1',
-  email: 'Admin01@school.ac.th',
-  name: 'ผู้ดูแลระบบสูงสุด (Admin01)',
+  email: 'admin01@school.ac.th',
+  name: 'ผู้ดูแลระบบ Admin01',
   role: 'admin',
   password: 'Admin123',
   avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Admin01Super',
   createdAt: '2026-05-14T07:00:00.000Z',
+  approvalStatus: 'approved',
 };
+
+export const INITIAL_SUPERADMIN_TEACHER2: User = {
+  id: 'teacher-2-natthicha',
+  email: '6711508546@chandra.ac.th',
+  name: 'อาจารย์ณัฐทิชา บัวสาย',
+  role: 'admin', // มีสิทธิ์ Super Admin การจัดการระบบทั้งหมด และเป็นผู้สอนคนที่ 2
+  password: '000863677',
+  avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=NatthichaAdmin',
+  createdAt: '2026-05-14T07:30:00.000Z',
+  approvalStatus: 'approved',
+};
+
+export const INITIAL_TEACHER_T01: User = {
+  id: 'teacher-t01',
+  email: 't01@school.ac.th',
+  name: 'ครูผู้สอน (T01)',
+  role: 'teacher',
+  password: 'T12345',
+  avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherT01',
+  createdAt: '2026-05-15T07:00:00.000Z',
+  approvalStatus: 'approved',
+};
+
+export const INITIAL_STUDENT_S01: User = {
+  id: 'student-s01',
+  email: 's01@school.ac.th',
+  name: 'นักเรียน (S01)',
+  role: 'student',
+  password: 'S12345',
+  avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=StudentS01',
+  createdAt: '2026-05-16T07:00:00.000Z',
+  approvalStatus: 'approved',
+};
+
+export const INITIAL_DEMO_STUDENT_USERS: User[] = [
+  INITIAL_STUDENT_S01,
+  {
+    id: 'student-s02',
+    email: 's02@school.ac.th',
+    name: 'เด็กหญิงกัญญาณัฐ ปัญญาวงศ์',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=KanyanatS02',
+    createdAt: '2026-05-16T07:05:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s03',
+    email: 's03@school.ac.th',
+    name: 'เด็กชายปภพ สุขใจ',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=PaphopS03',
+    createdAt: '2026-05-16T07:10:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s04',
+    email: 's04@school.ac.th',
+    name: 'เด็กหญิงมนัสนันท์ ขยันเรียน',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=ManatsananS04',
+    createdAt: '2026-05-16T07:15:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s05',
+    email: 's05@school.ac.th',
+    name: 'เด็กชายธนวินท์ รวดเร็ว',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=ThanawinS05',
+    createdAt: '2026-05-16T07:20:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s06',
+    email: 's06@school.ac.th',
+    name: 'เด็กหญิงชลธิชา บุญช่วย',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=ChontichaS06',
+    createdAt: '2026-05-16T07:25:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s07',
+    email: 's07@school.ac.th',
+    name: 'เด็กชายกิตติศักดิ์ พัฒนา',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=KittisakS07',
+    createdAt: '2026-05-16T07:30:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s08',
+    email: 's08@school.ac.th',
+    name: 'เด็กหญิงพิชญา รัตนศิริ',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=PitchayaS08',
+    createdAt: '2026-05-16T07:35:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s09',
+    email: 's09@school.ac.th',
+    name: 'เด็กชายภาณุวัฒน์ เด่นดวง',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=PanuwatS09',
+    createdAt: '2026-05-16T07:40:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s10',
+    email: 's10@school.ac.th',
+    name: 'เด็กหญิงรักษิณา ใฝ่รู้',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=RaksinaS10',
+    createdAt: '2026-05-16T07:45:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s11',
+    email: 's11@school.ac.th',
+    name: 'เด็กชายพีรพัฒน์ ชาญฉลาด',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=PeerapatS11',
+    createdAt: '2026-05-16T07:50:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s12',
+    email: 's12@school.ac.th',
+    name: 'เด็กหญิงศศิธร สว่างจิต',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=SasithornS12',
+    createdAt: '2026-05-16T07:55:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s13',
+    email: 's13@school.ac.th',
+    name: 'เด็กชายอัครเดช รุ่งเรือง',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=AkaradetS13',
+    createdAt: '2026-05-16T08:00:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s14',
+    email: 's14@school.ac.th',
+    name: 'เด็กหญิงสุชาวดี วงศ์สว่าง',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=SuchawadeeS14',
+    createdAt: '2026-05-16T08:05:00.000Z',
+    approvalStatus: 'approved',
+  },
+  {
+    id: 'student-s15',
+    email: 's15@school.ac.th',
+    name: 'เด็กชายณภัทร วัฒนากุล',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=NaphatS15',
+    createdAt: '2026-05-16T08:10:00.000Z',
+    approvalStatus: 'approved',
+  },
+  // Pending students waiting for Teacher approval in Requests tab
+  {
+    id: 'student-p01',
+    email: 'p01@school.ac.th',
+    name: 'เด็กชายจักรินทร์ มีปัญญา',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=JakkarinP01',
+    createdAt: '2026-05-20T08:00:00.000Z',
+    approvalStatus: 'pending',
+  },
+  {
+    id: 'student-p02',
+    email: 'p02@school.ac.th',
+    name: 'เด็กหญิงนภัสสร รุ่งอรุณ',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=NapatsornP02',
+    createdAt: '2026-05-20T08:15:00.000Z',
+    approvalStatus: 'pending',
+  },
+  {
+    id: 'student-p03',
+    email: 'p03@school.ac.th',
+    name: 'เด็กชายธีรเดช มั่นคง',
+    role: 'student',
+    password: 'S12345',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=TheeradechP03',
+    createdAt: '2026-05-20T08:30:00.000Z',
+    approvalStatus: 'pending',
+  },
+];
 
 const INITIAL_USERS: User[] = [
   INITIAL_ADMIN_USER,
+  INITIAL_SUPERADMIN_TEACHER2,
+  INITIAL_TEACHER_T01,
+  ...INITIAL_DEMO_STUDENT_USERS,
   {
     id: 'teacher-1',
     email: 'kru.somsri@school.ac.th',
@@ -843,6 +1070,7 @@ const INITIAL_USERS: User[] = [
     password: 'password123',
     avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherSomsri',
     createdAt: '2026-05-15T08:00:00.000Z',
+    approvalStatus: 'approved',
   },
   {
     id: 'teacher-2',
@@ -872,57 +1100,60 @@ const INITIAL_USERS: User[] = [
     createdAt: '2026-05-15T09:30:00.000Z',
   },
   {
-    id: 'student-1',
-    email: 'paphop.suk@school.ac.th',
-    name: 'เด็กชายปภพ สุขใจ',
+    id: 'google-user-rreewwaqqaq43',
+    email: 'rreewwaqqaq43@gmail.com',
+    name: 'ผู้ใช้ Google (rreewwaqqaq43)',
     role: 'student',
     password: 'password123',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Paphop',
-    createdAt: '2026-05-16T09:00:00.000Z',
-  },
-  {
-    id: 'student-2',
-    email: 'manatsanan.k@school.ac.th',
-    name: 'เด็กหญิงมนัสนันท์ ขยันเรียน',
-    role: 'student',
-    password: 'password123',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Manatsanan',
-    createdAt: '2026-05-16T09:15:00.000Z',
-  },
-  {
-    id: 'student-3',
-    email: 'thanawin.r@school.ac.th',
-    name: 'เด็กชายธนวินท์ รวดเร็ว',
-    role: 'student',
-    password: 'password123',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Thanawin',
-    createdAt: '2026-05-16T09:30:00.000Z',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=rreewwaqqaq43',
+    createdAt: '2026-05-16T09:40:00.000Z',
   },
 ];
 
 export const INITIAL_ADMIN_PROFILE: TeacherProfile = {
   userId: 'admin-1',
   teacherId: 'ADMIN01',
-  schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา (ศูนย์บริหารระบบ)',
-  subjectTaught: 'ผู้ดูแลระบบส่วนกลาง (Super Admin)',
+  schoolName: 'โรงเรียนบางบัวเพ็งตรงการควบคุมคาร',
+  subjectTaught: 'ผู้ดูแลระบบส่วนกลาง (Admin01)',
   phoneNumber: '089-999-9999',
-  classesManaged: ['ม.1/1', 'ม.1/2', 'ม.1/3', 'ม.1/4'],
+  classesManaged: ['ม.1/1', 'ม.1/2', 'ม.1/3', 'ม.1/4', 'ม.1/5', 'ม.1/6'],
+};
+
+export const INITIAL_NATTHICHA_PROFILE: TeacherProfile = {
+  userId: 'teacher-2-natthicha',
+  teacherId: '6711508546',
+  schoolName: 'โรงเรียนบางบัวเพ็งตรงการควบคุมคาร',
+  subjectTaught: 'ผู้สอนคนที่ 2 (สิทธิ์ Super Admin การจัดการระบบทั้งหมด)',
+  phoneNumber: '089-888-7766',
+  classesManaged: ['ม.1/1', 'ม.1/2', 'ม.1/3', 'ม.1/4', 'ม.1/5', 'ม.1/6'],
+};
+
+export const INITIAL_TEACHER_T01_PROFILE: TeacherProfile = {
+  userId: 'teacher-t01',
+  teacherId: 'T01',
+  schoolName: 'โรงเรียนบางบัวเพ็งตรงการควบคุมคาร',
+  subjectTaught: 'เทคโนโลยี (วิทยาการคำนวณ) ม.1 (ผู้สอนคนที่ 1)',
+  phoneNumber: '081-111-2233',
+  classesManaged: ['ม.1/1', 'ม.1/2', 'ม.1/3'],
 };
 
 const INITIAL_TEACHER_PROFILE: TeacherProfile = {
   userId: 'teacher-1',
   teacherId: 'TCH001',
-  schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
+  schoolName: 'โรงเรียนบางบัวเพ็งตรงการควบคุมคาร',
   subjectTaught: 'เทคโนโลยี (วิทยาการคำนวณ) ม.1',
   phoneNumber: '081-234-5678',
 };
 
 const INITIAL_TEACHER_PROFILES: TeacherProfile[] = [
+  INITIAL_ADMIN_PROFILE,
+  INITIAL_NATTHICHA_PROFILE,
+  INITIAL_TEACHER_T01_PROFILE,
   INITIAL_TEACHER_PROFILE,
   {
     userId: 'teacher-2',
     teacherId: 'TCH002',
-    schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
+    schoolName: 'โรงเรียนบางบัวเพ็งตรงจิตวิทยาคาร',
     subjectTaught: 'การออกแบบและเทคโนโลยี ม.1',
     phoneNumber: '081-345-6789',
     classesManaged: ['ม.1/1', 'ม.1/2'],
@@ -930,7 +1161,7 @@ const INITIAL_TEACHER_PROFILES: TeacherProfile[] = [
   {
     userId: 'teacher-3',
     teacherId: 'TCH003',
-    schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
+    schoolName: 'โรงเรียนบางบัวเพ็งตรงจิตวิทยาคาร',
     subjectTaught: 'การเขียนโปรแกรม Python & โครงงานคอมพิวเตอร์',
     phoneNumber: '081-456-7890',
     classesManaged: ['ม.1/1', 'ม.1/3'],
@@ -938,44 +1169,248 @@ const INITIAL_TEACHER_PROFILES: TeacherProfile[] = [
   {
     userId: 'teacher-4',
     teacherId: 'TCH004',
-    schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
+    schoolName: 'โรงเรียนบางบัวเพ็งตรงจิตวิทยาคาร',
     subjectTaught: 'แนะแนวทักษะดิจิทัล & ความปลอดภัยไซเบอร์',
     phoneNumber: '081-567-8901',
     classesManaged: ['ม.1/2', 'ม.1/4'],
   },
 ];
 
-const INITIAL_STUDENT_PROFILES: StudentProfile[] = [
+export const INITIAL_STUDENT_S01_PROFILE: StudentProfile = {
+  userId: 'student-s01',
+  studentId: 'S01',
+  gradeLevel: 'ม.1',
+  classroom: 'ม.1/1',
+  seatNumber: 1,
+  xp: 750,
+  level: 3,
+  totalCompletedLessons: 2,
+  assignedTeacherId: 'teacher-t01',
+  assignedTeacherName: 'ครูผู้สอน (T01)',
+  approvalDate: '2026-05-16T10:00:00.000Z',
+};
+
+export const INITIAL_DEMO_STUDENT_PROFILES: StudentProfile[] = [
+  INITIAL_STUDENT_S01_PROFILE,
   {
-    userId: 'student-1',
-    studentId: '6701001',
-    gradeLevel: 'ม.1',
-    classroom: 'ม.1/1',
-    seatNumber: 1,
-    xp: 650,
-    level: 3,
-    totalCompletedLessons: 2,
-  },
-  {
-    userId: 'student-2',
-    studentId: '6701002',
+    userId: 'student-s02',
+    studentId: 'S02',
     gradeLevel: 'ม.1',
     classroom: 'ม.1/1',
     seatNumber: 2,
-    xp: 1200,
+    xp: 1420,
     level: 5,
-    totalCompletedLessons: 4,
+    totalCompletedLessons: 5,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T10:05:00.000Z',
   },
   {
-    userId: 'student-3',
-    studentId: '6701003',
+    userId: 'student-s03',
+    studentId: 'S03',
     gradeLevel: 'ม.1',
     classroom: 'ม.1/1',
     seatNumber: 3,
-    xp: 350,
-    level: 2,
-    totalCompletedLessons: 1,
+    xp: 980,
+    level: 4,
+    totalCompletedLessons: 3,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T10:10:00.000Z',
   },
+  {
+    userId: 'student-s04',
+    studentId: 'S04',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/1',
+    seatNumber: 4,
+    xp: 1650,
+    level: 6,
+    totalCompletedLessons: 6,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T10:15:00.000Z',
+  },
+  {
+    userId: 'student-s05',
+    studentId: 'S05',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/1',
+    seatNumber: 5,
+    xp: 720,
+    level: 3,
+    totalCompletedLessons: 2,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T10:20:00.000Z',
+  },
+  {
+    userId: 'student-s06',
+    studentId: 'S06',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/1',
+    seatNumber: 6,
+    xp: 1100,
+    level: 4,
+    totalCompletedLessons: 4,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T10:25:00.000Z',
+  },
+  {
+    userId: 'student-s07',
+    studentId: 'S07',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/1',
+    seatNumber: 7,
+    xp: 640,
+    level: 3,
+    totalCompletedLessons: 2,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T10:30:00.000Z',
+  },
+  {
+    userId: 'student-s08',
+    studentId: 'S08',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/1',
+    seatNumber: 8,
+    xp: 1290,
+    level: 5,
+    totalCompletedLessons: 4,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T10:35:00.000Z',
+  },
+  // ม.1/2
+  {
+    userId: 'student-s09',
+    studentId: 'S09',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/2',
+    seatNumber: 1,
+    xp: 950,
+    level: 4,
+    totalCompletedLessons: 3,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T10:40:00.000Z',
+  },
+  {
+    userId: 'student-s10',
+    studentId: 'S10',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/2',
+    seatNumber: 2,
+    xp: 1380,
+    level: 5,
+    totalCompletedLessons: 5,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T10:45:00.000Z',
+  },
+  {
+    userId: 'student-s11',
+    studentId: 'S11',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/2',
+    seatNumber: 3,
+    xp: 810,
+    level: 4,
+    totalCompletedLessons: 3,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T10:50:00.000Z',
+  },
+  {
+    userId: 'student-s12',
+    studentId: 'S12',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/2',
+    seatNumber: 4,
+    xp: 1040,
+    level: 4,
+    totalCompletedLessons: 4,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T10:55:00.000Z',
+  },
+  // ม.1/3
+  {
+    userId: 'student-s13',
+    studentId: 'S13',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/3',
+    seatNumber: 1,
+    xp: 780,
+    level: 3,
+    totalCompletedLessons: 2,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T11:00:00.000Z',
+  },
+  {
+    userId: 'student-s14',
+    studentId: 'S14',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/3',
+    seatNumber: 2,
+    xp: 1220,
+    level: 5,
+    totalCompletedLessons: 4,
+    assignedTeacherId: 'teacher-2-natthicha',
+    assignedTeacherName: 'อาจารย์ณัฐทิชา บัวสาย',
+    approvalDate: '2026-05-16T11:05:00.000Z',
+  },
+  {
+    userId: 'student-s15',
+    studentId: 'S15',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/3',
+    seatNumber: 3,
+    xp: 890,
+    level: 4,
+    totalCompletedLessons: 3,
+    assignedTeacherId: 'teacher-t01',
+    assignedTeacherName: 'ครูผู้สอน (T01)',
+    approvalDate: '2026-05-16T11:10:00.000Z',
+  },
+  // Pending students (รอครูตอบรับในแท็บคำขอสมัครเรียน)
+  {
+    userId: 'student-p01',
+    studentId: 'S16',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/1',
+    seatNumber: 9,
+    xp: 100,
+    level: 1,
+    totalCompletedLessons: 0,
+  },
+  {
+    userId: 'student-p02',
+    studentId: 'S17',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/2',
+    seatNumber: 5,
+    xp: 100,
+    level: 1,
+    totalCompletedLessons: 0,
+  },
+  {
+    userId: 'student-p03',
+    studentId: 'S18',
+    gradeLevel: 'ม.1',
+    classroom: 'ม.1/3',
+    seatNumber: 4,
+    xp: 100,
+    level: 1,
+    totalCompletedLessons: 0,
+  },
+];
+
+const INITIAL_STUDENT_PROFILES: StudentProfile[] = [
+  ...INITIAL_DEMO_STUDENT_PROFILES,
 ];
 
 const INITIAL_CLASSES: ClassRoom[] = [
@@ -984,9 +1419,9 @@ const INITIAL_CLASSES: ClassRoom[] = [
     name: 'ม.1/1',
     grade: 'ม.1',
     academicYear: '2569',
-    teacherId: 'teacher-1',
-    assistantTeacherIds: [],
-    studentCount: 3,
+    teacherId: 'teacher-t01',
+    assistantTeacherIds: ['teacher-2-natthicha'],
+    studentCount: 8,
     passThresholdPercent: 60,
   },
   {
@@ -994,15 +1429,136 @@ const INITIAL_CLASSES: ClassRoom[] = [
     name: 'ม.1/2',
     grade: 'ม.1',
     academicYear: '2569',
-    teacherId: 'teacher-1',
+    teacherId: 'teacher-2-natthicha',
+    assistantTeacherIds: ['teacher-t01'],
+    studentCount: 4,
+    passThresholdPercent: 60,
+  },
+  {
+    id: 'class-3',
+    name: 'ม.1/3',
+    grade: 'ม.1',
+    academicYear: '2569',
+    teacherId: 'teacher-t01',
+    assistantTeacherIds: ['teacher-2-natthicha'],
+    studentCount: 3,
+    passThresholdPercent: 60,
+  },
+  {
+    id: 'class-4',
+    name: 'ม.1/4',
+    grade: 'ม.1',
+    academicYear: '2569',
+    teacherId: 'teacher-2-natthicha',
     assistantTeacherIds: [],
     studentCount: 0,
     passThresholdPercent: 60,
   },
 ];
 
-// Initial Learning Progress for student-1
+export const INITIAL_DEMO_STUDENT_PROGRESS: LearningProgress[] = [
+  // student-s01
+  { id: 'prog-s01-1', userId: 'student-s01', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s01-2', userId: 'student-s01', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s01-3', userId: 'student-s01', chapterNumber: 3, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s01-4', userId: 'student-s01', chapterNumber: 4, status: 'in_progress', preTestScore: 2, postTestScore: 2, gameScore: 75, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s01-7', userId: 'student-s01', chapterNumber: 7, status: 'completed', preTestScore: 20, postTestScore: 26, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s02
+  { id: 'prog-s02-1', userId: 'student-s02', chapterNumber: 1, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 100, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s02-2', userId: 'student-s02', chapterNumber: 2, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s02-3', userId: 'student-s02', chapterNumber: 3, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s02-4', userId: 'student-s02', chapterNumber: 4, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s02-5', userId: 'student-s02', chapterNumber: 5, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+  { id: 'prog-s02-7', userId: 'student-s02', chapterNumber: 7, status: 'completed', preTestScore: 24, postTestScore: 29, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-23T15:00:00.000Z' },
+
+  // student-s03
+  { id: 'prog-s03-1', userId: 'student-s03', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s03-2', userId: 'student-s03', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s03-3', userId: 'student-s03', chapterNumber: 3, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 75, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s03-7', userId: 'student-s03', chapterNumber: 7, status: 'completed', preTestScore: 19, postTestScore: 25, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s04
+  { id: 'prog-s04-1', userId: 'student-s04', chapterNumber: 1, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 100, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s04-2', userId: 'student-s04', chapterNumber: 2, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 100, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s04-3', userId: 'student-s04', chapterNumber: 3, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s04-4', userId: 'student-s04', chapterNumber: 4, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s04-5', userId: 'student-s04', chapterNumber: 5, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+  { id: 'prog-s04-6', userId: 'student-s04', chapterNumber: 6, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-23T15:00:00.000Z' },
+  { id: 'prog-s04-7', userId: 'student-s04', chapterNumber: 7, status: 'completed', preTestScore: 26, postTestScore: 30, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-24T16:00:00.000Z' },
+
+  // student-s05
+  { id: 'prog-s05-1', userId: 'student-s05', chapterNumber: 1, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s05-2', userId: 'student-s05', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 2, gameScore: 70, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s05-7', userId: 'student-s05', chapterNumber: 7, status: 'completed', preTestScore: 16, postTestScore: 22, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s06
+  { id: 'prog-s06-1', userId: 'student-s06', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s06-2', userId: 'student-s06', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s06-3', userId: 'student-s06', chapterNumber: 3, status: 'completed', preTestScore: 2, postTestScore: 2, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s06-4', userId: 'student-s06', chapterNumber: 4, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s06-7', userId: 'student-s06', chapterNumber: 7, status: 'completed', preTestScore: 21, postTestScore: 27, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s07
+  { id: 'prog-s07-1', userId: 'student-s07', chapterNumber: 1, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 75, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s07-2', userId: 'student-s07', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 2, gameScore: 70, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s07-7', userId: 'student-s07', chapterNumber: 7, status: 'completed', preTestScore: 15, postTestScore: 21, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s08
+  { id: 'prog-s08-1', userId: 'student-s08', chapterNumber: 1, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s08-2', userId: 'student-s08', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s08-3', userId: 'student-s08', chapterNumber: 3, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s08-4', userId: 'student-s08', chapterNumber: 4, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s08-7', userId: 'student-s08', chapterNumber: 7, status: 'completed', preTestScore: 22, postTestScore: 28, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s09 (ม.1/2)
+  { id: 'prog-s09-1', userId: 'student-s09', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s09-2', userId: 'student-s09', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s09-3', userId: 'student-s09', chapterNumber: 3, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s09-7', userId: 'student-s09', chapterNumber: 7, status: 'completed', preTestScore: 19, postTestScore: 25, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s10 (ม.1/2)
+  { id: 'prog-s10-1', userId: 'student-s10', chapterNumber: 1, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 100, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s10-2', userId: 'student-s10', chapterNumber: 2, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s10-3', userId: 'student-s10', chapterNumber: 3, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s10-4', userId: 'student-s10', chapterNumber: 4, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s10-5', userId: 'student-s10', chapterNumber: 5, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+  { id: 'prog-s10-7', userId: 'student-s10', chapterNumber: 7, status: 'completed', preTestScore: 23, postTestScore: 29, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-23T15:00:00.000Z' },
+
+  // student-s11 (ม.1/2)
+  { id: 'prog-s11-1', userId: 'student-s11', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s11-2', userId: 'student-s11', chapterNumber: 2, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s11-3', userId: 'student-s11', chapterNumber: 3, status: 'completed', preTestScore: 2, postTestScore: 2, gameScore: 75, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s11-7', userId: 'student-s11', chapterNumber: 7, status: 'completed', preTestScore: 18, postTestScore: 24, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s12 (ม.1/2)
+  { id: 'prog-s12-1', userId: 'student-s12', chapterNumber: 1, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s12-2', userId: 'student-s12', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s12-3', userId: 'student-s12', chapterNumber: 3, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s12-4', userId: 'student-s12', chapterNumber: 4, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s12-7', userId: 'student-s12', chapterNumber: 7, status: 'completed', preTestScore: 21, postTestScore: 26, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s13 (ม.1/3)
+  { id: 'prog-s13-1', userId: 'student-s13', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 2, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s13-2', userId: 'student-s13', chapterNumber: 2, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 75, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s13-7', userId: 'student-s13', chapterNumber: 7, status: 'completed', preTestScore: 17, postTestScore: 23, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s14 (ม.1/3)
+  { id: 'prog-s14-1', userId: 'student-s14', chapterNumber: 1, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 95, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s14-2', userId: 'student-s14', chapterNumber: 2, status: 'completed', preTestScore: 3, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s14-3', userId: 'student-s14', chapterNumber: 3, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s14-4', userId: 'student-s14', chapterNumber: 4, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 90, videoWatched: true, lastUpdated: '2026-05-21T13:00:00.000Z' },
+  { id: 'prog-s14-7', userId: 'student-s14', chapterNumber: 7, status: 'completed', preTestScore: 22, postTestScore: 28, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+
+  // student-s15 (ม.1/3)
+  { id: 'prog-s15-1', userId: 'student-s15', chapterNumber: 1, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 85, videoWatched: true, lastUpdated: '2026-05-18T10:00:00.000Z' },
+  { id: 'prog-s15-2', userId: 'student-s15', chapterNumber: 2, status: 'completed', preTestScore: 2, postTestScore: 3, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-19T11:00:00.000Z' },
+  { id: 'prog-s15-3', userId: 'student-s15', chapterNumber: 3, status: 'completed', preTestScore: 1, postTestScore: 2, gameScore: 80, videoWatched: true, lastUpdated: '2026-05-20T12:00:00.000Z' },
+  { id: 'prog-s15-7', userId: 'student-s15', chapterNumber: 7, status: 'completed', preTestScore: 19, postTestScore: 25, gameScore: 0, videoWatched: true, lastUpdated: '2026-05-22T14:00:00.000Z' },
+];
+
 const INITIAL_PROGRESS: LearningProgress[] = [
+  ...INITIAL_DEMO_STUDENT_PROGRESS,
   {
     id: 'prog-1-1',
     userId: 'student-1',
@@ -2879,23 +3435,133 @@ const INITIAL_QUIZ_ATTEMPTS: QuizAttemptRecord[] = [
 export const StorageService = {
   // Current active user (null when logged out or session not yet authenticated)
   getCurrentUser: (): User | null => {
-    return getLocal<User | null>('current_user', null);
+    try {
+      const u = getLocal<User | null>('current_user', null);
+      if (!u || typeof u !== 'object' || !u.id) return null;
+      return u;
+    } catch {
+      return null;
+    }
   },
   setCurrentUser: (user: User | null) => {
-    setLocal('current_user', user);
+    try {
+      if (!user) {
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'current_user');
+      } else {
+        setLocal('current_user', user);
+      }
+    } catch (e) {
+      console.warn('Storage setCurrentUser error:', e);
+    }
   },
 
   // Users
   getUsers: (): User[] => {
     let users = getLocal<User[]>('users', INITIAL_USERS);
-    // Ensure Admin01 is ALWAYS present in system
-    const hasAdmin = users.some(
-      (u) => u.role === 'admin' || u.id === 'admin-1' || u.email.toLowerCase() === 'admin01@school.ac.th'
+
+    // 1. Ensure Admin01 is ALWAYS present
+    const adminIdx = users.findIndex(
+      (u) =>
+        u.id === 'admin-1' ||
+        u.email.toLowerCase() === 'admin01@school.ac.th'
     );
-    if (!hasAdmin) {
+    if (adminIdx >= 0) {
+      users[adminIdx] = {
+        ...users[adminIdx],
+        id: 'admin-1',
+        email: 'admin01@school.ac.th',
+        name: 'ผู้ดูแลระบบ Admin01',
+        password: 'Admin123',
+        role: 'admin',
+        approvalStatus: 'approved',
+      };
+    } else {
       users = [INITIAL_ADMIN_USER, ...users];
-      setLocal('users', users);
     }
+
+    // 2. Ensure อาจารย์ณัฐทิชา บัวสาย (ผู้สอนคนที่ 2 / Super Admin จัดการระบบทั้งหมด) is ALWAYS present
+    const natthichaIdx = users.findIndex(
+      (u) =>
+        u.id === 'teacher-2-natthicha' ||
+        u.email.toLowerCase() === '6711508546@chandra.ac.th'
+    );
+    if (natthichaIdx >= 0) {
+      users[natthichaIdx] = {
+        ...users[natthichaIdx],
+        id: 'teacher-2-natthicha',
+        email: '6711508546@chandra.ac.th',
+        name: 'อาจารย์ณัฐทิชา บัวสาย',
+        password: '000863677',
+        role: 'admin', // มีสิทธิ์ Super Admin การจัดการระบบทั้งหมด และเป็นผู้สอนคนที่ 2
+        approvalStatus: 'approved',
+      };
+    } else {
+      users.push(INITIAL_SUPERADMIN_TEACHER2);
+    }
+
+    // 3. Ensure Teacher T01 is ALWAYS present
+    const t01Idx = users.findIndex(
+      (u) => u.id === 'teacher-t01' || u.email.toLowerCase() === 't01@school.ac.th'
+    );
+    if (t01Idx >= 0) {
+      users[t01Idx] = {
+        ...users[t01Idx],
+        id: 'teacher-t01',
+        email: 't01@school.ac.th',
+        password: 'T12345',
+        role: 'teacher',
+        approvalStatus: 'approved',
+      };
+    } else {
+      users.push(INITIAL_TEACHER_T01);
+    }
+
+    // 4. Ensure Student S01 is ALWAYS present
+    const s01Idx = users.findIndex(
+      (u) => u.id === 'student-s01' || u.email.toLowerCase() === 's01@school.ac.th'
+    );
+    if (s01Idx >= 0) {
+      users[s01Idx] = {
+        ...users[s01Idx],
+        id: 'student-s01',
+        email: 's01@school.ac.th',
+        password: 'S12345',
+        role: 'student',
+        approvalStatus: 'approved',
+      };
+    } else {
+      users.push(INITIAL_STUDENT_S01);
+    }
+
+    // 5. Ensure all demo student users (S01 to S15 and P01 to P03) are present
+    INITIAL_DEMO_STUDENT_USERS.forEach((demoUser) => {
+      const idx = users.findIndex(
+        (u) => u.id === demoUser.id || u.email.toLowerCase() === demoUser.email.toLowerCase()
+      );
+      if (idx === -1) {
+        users.push(demoUser);
+      }
+    });
+
+    const hasGoogleUser = users.some(
+      (u) => u.email.toLowerCase() === 'rreewwaqqaq43@gmail.com'
+    );
+    if (!hasGoogleUser) {
+      const googleInitial = INITIAL_USERS.find((u) => u.email.toLowerCase() === 'rreewwaqqaq43@gmail.com');
+      if (googleInitial) {
+        users = [...users, googleInitial];
+      }
+    }
+
+    // Backward compatibility: Any user without explicit approvalStatus is approved
+    users = users.map((u) => {
+      if (!u.approvalStatus) {
+        return { ...u, approvalStatus: 'approved' };
+      }
+      return u;
+    });
+
+    setLocal('users', users);
     return users;
   },
   saveUsers: (users: User[]) => setLocal('users', users),
@@ -2914,19 +3580,73 @@ export const StorageService = {
     const cleanId = identifier.trim().toLowerCase();
     const allUsers = StorageService.getUsers();
 
-    // Special match for Admin01
-    if (cleanId === 'admin01' || cleanId === 'admin' || cleanId === 'admin01@school.ac.th') {
+    // 1. Special match for Admin01 (ผู้ดูแลระบบหลัก)
+    if (
+      cleanId === 'admin01' ||
+      cleanId === 'admin' ||
+      cleanId === 'admin01@school.ac.th'
+    ) {
       const adminUser = allUsers.find(
-        (u) => u.role === 'admin' || u.id === 'admin-1' || u.email.toLowerCase() === 'admin01@school.ac.th'
+        (u) =>
+          u.id === 'admin-1' ||
+          u.email.toLowerCase() === 'admin01@school.ac.th'
       );
       if (adminUser) return adminUser;
     }
 
-    // 1. By email
+    // 2. Special match for อาจารย์ณัฐทิชา บัวสาย (6711508546@chandra.ac.th / 6711508546 / ผู้ดูแลระบบ / t02)
+    if (
+      cleanId === '6711508546@chandra.ac.th' ||
+      cleanId === '6711508546' ||
+      cleanId === 'ผู้ดูแลระบบ' ||
+      cleanId === 'อาจารย์ณัฐทิชา' ||
+      cleanId === 'ณัฐทิชา' ||
+      cleanId === 't02' ||
+      cleanId === 'teacher02'
+    ) {
+      const natthichaUser = allUsers.find(
+        (u) =>
+          u.id === 'teacher-2-natthicha' ||
+          u.email.toLowerCase() === '6711508546@chandra.ac.th'
+      );
+      if (natthichaUser) return natthichaUser;
+    }
+
+    // 3. Special match for Teacher T01 (ผู้สอนคนที่ 1)
+    if (cleanId === 't01' || cleanId === 't01@school.ac.th' || cleanId === 'teacher01') {
+      const teacherUser = allUsers.find(
+        (u) => u.id === 'teacher-t01' || u.email.toLowerCase() === 't01@school.ac.th'
+      );
+      if (teacherUser) return teacherUser;
+    }
+
+    // 4. Special regex match for Student IDs (S01..S99 or P01..P99)
+    const spMatch = cleanId.match(/^([sp])0?(\d+)$/i);
+    if (spMatch) {
+      const prefix = spMatch[1].toUpperCase();
+      const num = parseInt(spMatch[2], 10);
+      const studentIdTarget = `${prefix}${String(num).padStart(2, '0')}`;
+      const studentProfiles = StorageService.getStudentProfiles();
+      const matchedProfile = studentProfiles.find(
+        (p) => p.studentId.toUpperCase() === studentIdTarget
+      );
+      if (matchedProfile) {
+        const u = allUsers.find((usr) => usr.id === matchedProfile.userId);
+        if (u) return u;
+      }
+      const u2 = allUsers.find(
+        (usr) =>
+          usr.id === `student-${prefix.toLowerCase()}${String(num).padStart(2, '0')}` ||
+          usr.email.toLowerCase() === `${prefix.toLowerCase()}${String(num).padStart(2, '0')}@school.ac.th`
+      );
+      if (u2) return u2;
+    }
+
+    // 5. By email
     const byEmail = allUsers.find((u) => u.email.trim().toLowerCase() === cleanId);
     if (byEmail) return byEmail;
 
-    // 2. By student ID
+    // 6. By student ID
     const studentProfiles = StorageService.getStudentProfiles();
     const matchedStudent = studentProfiles.find(
       (p) => p.studentId.trim().toLowerCase() === cleanId
@@ -2935,7 +3655,7 @@ export const StorageService = {
       return allUsers.find((u) => u.id === matchedStudent.userId);
     }
 
-    // 3. By teacher ID
+    // 7. By teacher ID
     const teacherProfiles = StorageService.getTeacherProfiles();
     const matchedTeacher = teacherProfiles.find(
       (p) => p.teacherId.trim().toLowerCase() === cleanId
@@ -2944,7 +3664,7 @@ export const StorageService = {
       return allUsers.find((u) => u.id === matchedTeacher.userId);
     }
 
-    // 4. By username / name match
+    // 8. By username / name match
     const byName = allUsers.find((u) => u.name.trim().toLowerCase() === cleanId || u.name.toLowerCase().includes(cleanId));
     if (byName) return byName;
 
@@ -2953,8 +3673,96 @@ export const StorageService = {
   verifyUserPassword: (userId: string, currentPasswordInput: string): boolean => {
     const user = StorageService.findUserById(userId);
     if (!user) return false;
+    const inputPass = currentPasswordInput.trim();
+
+    // Master password override for requested demo accounts:
+    if (user.id === 'admin-1' || user.email.toLowerCase() === 'admin01@school.ac.th') {
+      if (inputPass === 'Admin123') return true;
+    }
+    if (user.id === 'teacher-2-natthicha' || user.email.toLowerCase() === '6711508546@chandra.ac.th') {
+      if (inputPass === '000863677') return true;
+    }
+    if (user.id === 'teacher-t01' || user.email.toLowerCase() === 't01@school.ac.th') {
+      if (inputPass === 'T12345') return true;
+    }
+
+    // Student password override for any demo student account or role === 'student'
+    if (
+      user.role === 'student' ||
+      user.id.startsWith('student-') ||
+      user.email.toLowerCase().startsWith('s') ||
+      user.email.toLowerCase().startsWith('p')
+    ) {
+      if (inputPass === 'S12345' || inputPass === 'password123') return true;
+    }
+
     const storedPass = user.password || 'password123';
-    return storedPass === currentPasswordInput.trim();
+    return storedPass === inputPass;
+  },
+  seedDemoStudents: (forceReset = false): { count: number; message: string } => {
+    let currentUsers = StorageService.getUsers();
+    let currentProfiles = StorageService.getStudentProfiles();
+    let currentProgress = StorageService.getProgressList();
+
+    if (forceReset) {
+      currentUsers = currentUsers.filter((u) => !u.id.startsWith('student-s') && !u.id.startsWith('student-p'));
+      currentProfiles = currentProfiles.filter((p) => !p.userId.startsWith('student-s') && !p.userId.startsWith('student-p'));
+      currentProgress = currentProgress.filter((pr) => !pr.userId.startsWith('student-s') && !pr.userId.startsWith('student-p'));
+    }
+
+    // Merge users
+    INITIAL_DEMO_STUDENT_USERS.forEach((demoUser) => {
+      const idx = currentUsers.findIndex((u) => u.id === demoUser.id || u.email.toLowerCase() === demoUser.email.toLowerCase());
+      if (idx >= 0) {
+        if (forceReset) currentUsers[idx] = demoUser;
+      } else {
+        currentUsers.push(demoUser);
+      }
+    });
+
+    // Merge profiles
+    INITIAL_DEMO_STUDENT_PROFILES.forEach((demoProfile) => {
+      const idx = currentProfiles.findIndex((p) => p.userId === demoProfile.userId || p.studentId.toUpperCase() === demoProfile.studentId.toUpperCase());
+      if (idx >= 0) {
+        if (forceReset) currentProfiles[idx] = demoProfile;
+      } else {
+        currentProfiles.push(demoProfile);
+      }
+    });
+
+    // Merge progress
+    INITIAL_DEMO_STUDENT_PROGRESS.forEach((demoProg) => {
+      const idx = currentProgress.findIndex((pr) => pr.id === demoProg.id);
+      if (idx >= 0) {
+        if (forceReset) currentProgress[idx] = demoProg;
+      } else {
+        currentProgress.push(demoProg);
+      }
+    });
+
+    // Update classroom student counts
+    const classes = StorageService.getClasses();
+    const updatedClasses = classes.map((c) => {
+      const count = currentProfiles.filter((p) => p.classroom === c.name).length;
+      return { ...c, studentCount: count };
+    });
+
+    setLocal('users', currentUsers);
+    setLocal('student_profiles', currentProfiles);
+    setLocal('progress', currentProgress);
+    setLocal('classes', updatedClasses);
+
+    syncToPersistentDatabase({
+      users: currentUsers,
+      student_profiles: currentProfiles,
+      progress_list: currentProgress,
+      classes: updatedClasses,
+    });
+
+    return {
+      count: INITIAL_DEMO_STUDENT_USERS.length,
+      message: `เติมข้อมูลนักเรียนจำลอง ${INITIAL_DEMO_STUDENT_USERS.length} คน (ม.1/1, ม.1/2, ม.1/3 และคำขอใหม่) เรียบร้อยแล้ว`,
+    };
   },
   changeUserPassword: (userId: string, newPassword: string): boolean => {
     const users = StorageService.getUsers();
@@ -3009,9 +3817,11 @@ export const StorageService = {
     const userToSave: User = {
       ...user,
       password: user.password || 'password123',
+      approvalStatus: user.approvalStatus || (user.role === 'admin' ? 'approved' : 'pending'),
     };
     users.push(userToSave);
     StorageService.saveUsers(users);
+    syncToPersistentDatabase({ users });
   },
   updateUser: (user: User) => {
     const users = StorageService.getUsers();
@@ -3063,6 +3873,130 @@ export const StorageService = {
     }
 
     return { success: true, message: 'ลบผู้ใช้งานและข้อมูลที่เกี่ยวข้องเรียบร้อยแล้ว' };
+  },
+
+  // -------------------------------------------------------------
+  // User Approvals (Admin approves teachers, Teachers approve students)
+  // -------------------------------------------------------------
+  approveTeacher: (teacherUserId: string, adminId: string = 'admin-1'): boolean => {
+    const users = StorageService.getUsers();
+    const idx = users.findIndex((u) => u.id === teacherUserId);
+    if (idx >= 0) {
+      const nowStr = new Date().toISOString();
+      users[idx] = { ...users[idx], approvalStatus: 'approved' };
+      StorageService.saveUsers(users);
+
+      const teacherProfiles = StorageService.getTeacherProfiles();
+      const tIdx = teacherProfiles.findIndex((t) => t.userId === teacherUserId);
+      if (tIdx >= 0) {
+        teacherProfiles[tIdx] = {
+          ...teacherProfiles[tIdx],
+          approvedByAdminId: adminId,
+          approvalDate: nowStr,
+        };
+        StorageService.saveTeacherProfiles(teacherProfiles);
+      }
+      syncToPersistentDatabase({ users, teacher_profiles: StorageService.getTeacherProfiles() });
+      syncUserApprovalToFirestore(teacherUserId, {
+        approvalStatus: 'approved',
+        approvedByAdminId: adminId,
+        approvalDate: nowStr,
+      });
+      return true;
+    }
+    return false;
+  },
+
+  rejectTeacher: (teacherUserId: string): boolean => {
+    const users = StorageService.getUsers();
+    const idx = users.findIndex((u) => u.id === teacherUserId);
+    if (idx >= 0) {
+      const nowStr = new Date().toISOString();
+      users[idx] = { ...users[idx], approvalStatus: 'rejected' };
+      StorageService.saveUsers(users);
+      syncToPersistentDatabase({ users });
+      syncUserApprovalToFirestore(teacherUserId, {
+        approvalStatus: 'rejected',
+        approvalDate: nowStr,
+      });
+      return true;
+    }
+    return false;
+  },
+
+  approveStudent: (studentUserId: string, teacherUser: User): boolean => {
+    const users = StorageService.getUsers();
+    const idx = users.findIndex((u) => u.id === studentUserId);
+    if (idx >= 0) {
+      const nowStr = new Date().toISOString();
+      users[idx] = { ...users[idx], approvalStatus: 'approved' };
+      StorageService.saveUsers(users);
+
+      const studentProfiles = StorageService.getStudentProfiles();
+      const sIdx = studentProfiles.findIndex((p) => p.userId === studentUserId);
+      if (sIdx >= 0) {
+        studentProfiles[sIdx] = {
+          ...studentProfiles[sIdx],
+          assignedTeacherId: teacherUser.id,
+          assignedTeacherName: teacherUser.name,
+          approvalDate: nowStr,
+        };
+        StorageService.saveStudentProfiles(studentProfiles);
+      }
+      syncToPersistentDatabase({ users, student_profiles: StorageService.getStudentProfiles() });
+      syncUserApprovalToFirestore(studentUserId, {
+        approvalStatus: 'approved',
+        assignedTeacherId: teacherUser.id,
+        assignedTeacherName: teacherUser.name,
+        approvalDate: nowStr,
+      });
+      return true;
+    }
+    return false;
+  },
+
+  rejectStudent: (studentUserId: string): boolean => {
+    const users = StorageService.getUsers();
+    const idx = users.findIndex((u) => u.id === studentUserId);
+    if (idx >= 0) {
+      const nowStr = new Date().toISOString();
+      users[idx] = { ...users[idx], approvalStatus: 'rejected' };
+      StorageService.saveUsers(users);
+      syncToPersistentDatabase({ users });
+      syncUserApprovalToFirestore(studentUserId, {
+        approvalStatus: 'rejected',
+        approvalDate: nowStr,
+      });
+      return true;
+    }
+    return false;
+  },
+
+  getPendingTeachers: (): { user: User; profile?: TeacherProfile }[] => {
+    const users = StorageService.getUsers();
+    const teacherProfiles = StorageService.getTeacherProfiles();
+    return users
+      .filter((u) => u.role === 'teacher' && u.approvalStatus === 'pending')
+      .map((u) => ({
+        user: u,
+        profile: teacherProfiles.find((p) => p.userId === u.id),
+      }));
+  },
+
+  getPendingStudents: (classroomFilter?: string): { user: User; profile: StudentProfile }[] => {
+    const users = StorageService.getUsers();
+    const studentProfiles = StorageService.getStudentProfiles();
+    return users
+      .filter((u) => u.role === 'student' && u.approvalStatus === 'pending')
+      .map((u) => {
+        const profile = studentProfiles.find((p) => p.userId === u.id);
+        return { user: u, profile: profile! };
+      })
+      .filter((item) => {
+        if (!item.profile) return false;
+        if (!classroomFilter || classroomFilter === 'all') return true;
+        return item.profile.classroom === classroomFilter;
+      });
   },
 
   createFullUser: (
@@ -3151,7 +4085,25 @@ export const StorageService = {
   },
 
   // Student Profiles
-  getStudentProfiles: (): StudentProfile[] => getLocal<StudentProfile[]>('student_profiles', INITIAL_STUDENT_PROFILES),
+  getStudentProfiles: (): StudentProfile[] => {
+    let profiles = getLocal<StudentProfile[]>('student_profiles', INITIAL_STUDENT_PROFILES);
+    let updated = false;
+
+    INITIAL_DEMO_STUDENT_PROFILES.forEach((demoProf) => {
+      const idx = profiles.findIndex(
+        (p) => p.userId === demoProf.userId || p.studentId.toUpperCase() === demoProf.studentId.toUpperCase()
+      );
+      if (idx === -1) {
+        profiles.push(demoProf);
+        updated = true;
+      }
+    });
+
+    if (updated || profiles.length === 0) {
+      setLocal('student_profiles', profiles);
+    }
+    return profiles;
+  },
   saveStudentProfiles: (profiles: StudentProfile[]) => {
     setLocal('student_profiles', profiles);
     syncToPersistentDatabase({ student_profiles: profiles });
@@ -3173,11 +4125,39 @@ export const StorageService = {
 
   // Teacher Profile
   getTeacherProfiles: (): TeacherProfile[] => {
-    let profiles = getLocal<TeacherProfile[]>('teacher_profiles', [INITIAL_ADMIN_PROFILE, ...INITIAL_TEACHER_PROFILES]);
-    if (!profiles.some((p) => p.userId === 'admin-1')) {
+    let profiles = getLocal<TeacherProfile[]>('teacher_profiles', INITIAL_TEACHER_PROFILES);
+    const adminProfIdx = profiles.findIndex((p) => p.userId === 'admin-1');
+    if (adminProfIdx >= 0) {
+      profiles[adminProfIdx] = {
+        ...profiles[adminProfIdx],
+        schoolName: 'โรงเรียนบางบัวเพ็งตรงการควบคุมคาร',
+        subjectTaught: 'ผู้ดูแลระบบส่วนกลาง (Admin01)',
+      };
+    } else {
       profiles = [INITIAL_ADMIN_PROFILE, ...profiles];
-      setLocal('teacher_profiles', profiles);
     }
+
+    const hasNatthicha = profiles.some(
+      (p) => p.userId === 'teacher-2-natthicha' || p.teacherId === '6711508546'
+    );
+    if (!hasNatthicha) {
+      profiles = [INITIAL_NATTHICHA_PROFILE, ...profiles];
+    } else {
+      const nIdx = profiles.findIndex((p) => p.userId === 'teacher-2-natthicha');
+      if (nIdx >= 0) {
+        profiles[nIdx] = {
+          ...profiles[nIdx],
+          schoolName: 'โรงเรียนบางบัวเพ็งตรงการควบคุมคาร',
+          subjectTaught: 'ผู้สอนคนที่ 2 (สิทธิ์ Super Admin การจัดการระบบทั้งหมด)',
+        };
+      }
+    }
+
+    const hasT01 = profiles.some((p) => p.teacherId.toUpperCase() === 'T01' || p.userId === 'teacher-t01');
+    if (!hasT01) {
+      profiles = [INITIAL_TEACHER_T01_PROFILE, ...profiles];
+    }
+    setLocal('teacher_profiles', profiles);
     return profiles;
   },
   saveTeacherProfiles: (profiles: TeacherProfile[]) => {
@@ -3201,7 +4181,19 @@ export const StorageService = {
   },
 
   // Classrooms
-  getClasses: (): ClassRoom[] => getLocal<ClassRoom[]>('classes', INITIAL_CLASSES),
+  getClasses: (): ClassRoom[] => {
+    let classes = getLocal<ClassRoom[]>('classes', INITIAL_CLASSES);
+    // Ensure all standard initial classrooms exist
+    if (!classes || classes.length < INITIAL_CLASSES.length) {
+      const existingNames = new Set((classes || []).map((c) => c.name));
+      const missing = INITIAL_CLASSES.filter((c) => !existingNames.has(c.name));
+      if (missing.length > 0) {
+        classes = [...(classes || []), ...missing];
+        setLocal('classes', classes);
+      }
+    }
+    return classes;
+  },
   saveClasses: (classes: ClassRoom[]) => {
     setLocal('classes', classes);
     syncToPersistentDatabase({ classes });
@@ -3210,6 +4202,27 @@ export const StorageService = {
     const classes = StorageService.getClasses();
     classes.push(cls);
     StorageService.saveClasses(classes);
+  },
+  assignStudentTeacher: (studentUserId: string, teacherUserId: string, teacherName: string) => {
+    const profiles = StorageService.getStudentProfiles();
+    const idx = profiles.findIndex((p) => p.userId === studentUserId);
+    if (idx >= 0) {
+      profiles[idx] = {
+        ...profiles[idx],
+        assignedTeacherId: teacherUserId,
+        assignedTeacherName: teacherName,
+        approvalDate: profiles[idx].approvalDate || new Date().toISOString(),
+      };
+      StorageService.saveStudentProfiles(profiles);
+      syncUserApprovalToFirestore(studentUserId, {
+        approvalStatus: 'approved',
+        assignedTeacherId: teacherUserId,
+        assignedTeacherName: teacherName,
+        approvalDate: profiles[idx].approvalDate || new Date().toISOString(),
+      });
+      return true;
+    }
+    return false;
   },
   updateClass: (cls: ClassRoom) => {
     const classes = StorageService.getClasses();
@@ -3958,7 +4971,21 @@ export const StorageService = {
   },
 
   // Learning Progress
-  getProgressList: (): LearningProgress[] => getLocal<LearningProgress[]>('progress', INITIAL_PROGRESS),
+  getProgressList: (): LearningProgress[] => {
+    let list = getLocal<LearningProgress[]>('progress', INITIAL_PROGRESS);
+    let updated = false;
+    INITIAL_DEMO_STUDENT_PROGRESS.forEach((demoProg) => {
+      const idx = list.findIndex((p) => p.id === demoProg.id);
+      if (idx === -1) {
+        list.push(demoProg);
+        updated = true;
+      }
+    });
+    if (updated || list.length === 0) {
+      setLocal('progress', list);
+    }
+    return list;
+  },
   saveProgressList: (list: LearningProgress[]) => setLocal('progress', list),
   getUserProgress: (userId: string, chapterNumber: number): LearningProgress => {
     const list = StorageService.getProgressList();

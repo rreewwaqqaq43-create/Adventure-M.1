@@ -57,12 +57,20 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
   const [teacherProfiles, setTeacherProfiles] = useState<TeacherProfile[]>(() =>
     StorageService.getTeacherProfiles()
   );
-  const [allClasses] = useState(() => StorageService.getClasses());
+  const [allClasses, setAllClasses] = useState(() => StorageService.getClasses());
 
   // Filter states
+  const [adminSubTab, setAdminSubTab] = useState<'users' | 'teacher_requests'>('users');
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'teacher' | 'admin'>('all');
   const [classFilter, setClassFilter] = useState<string>('all');
+  const [teacherFilter, setTeacherFilter] = useState<string>('all');
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
+
+  // List of teachers for assignment & filtering
+  const allTeachers = useMemo(() => {
+    return users.filter((u) => u.role === 'teacher' && (u.approvalStatus || 'approved') === 'approved');
+  }, [users]);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -82,6 +90,8 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
     seatNumber: 1,
     gradeLevel: 'ม.1',
     xp: 100,
+    assignedTeacherId: '',
+    assignedTeacherName: '',
     // Teacher / Admin fields
     teacherId: '',
     schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
@@ -97,9 +107,9 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
   const showToast = (type: 'success' | 'error', message: string) => {
     setFeedbackNotice({ type, message });
     if (type === 'success') {
-      if (message.includes('เพิ่ม')) {
+      if (message.includes('เพิ่ม') || message.includes('อนุมัติ')) {
         feedback.add(message);
-      } else if (message.includes('ลบ')) {
+      } else if (message.includes('ลบ') || message.includes('ปฏิเสธ')) {
         feedback.delete(message);
       } else if (message.includes('อัปเดต') || message.includes('แก้ไข') || message.includes('รหัสผ่าน')) {
         feedback.edit(message);
@@ -116,7 +126,65 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
     setUsers(StorageService.getUsers());
     setStudentProfiles(StorageService.getStudentProfiles());
     setTeacherProfiles(StorageService.getTeacherProfiles());
+    setAllClasses(StorageService.getClasses());
     if (onRefreshParent) onRefreshParent();
+  };
+
+  // Pending teachers for Admin approval
+  const pendingTeachers = useMemo(() => {
+    return users
+      .filter((u) => u.role === 'teacher' && u.approvalStatus === 'pending')
+      .map((u) => ({
+        user: u,
+        profile: teacherProfiles.find((p) => p.userId === u.id),
+      }));
+  }, [users, teacherProfiles]);
+
+  // Handle Admin Approving Teacher
+  const handleApproveTeacher = (teacherUserId: string, teacherName: string) => {
+    const ok = StorageService.approveTeacher(teacherUserId, currentAdmin.id);
+    if (ok) {
+      refreshData();
+      showToast('success', `อนุมัติครูผู้สอน "${teacherName}" เข้าใช้งานระบบเรียบร้อยแล้ว ครูสามารถล็อกอินได้ทันที`);
+    } else {
+      showToast('error', 'เกิดข้อผิดพลาดในการอนุมัติครูผู้สอน');
+    }
+  };
+
+  // Handle Admin Rejecting Teacher
+  const handleRejectTeacher = (teacherUserId: string, teacherName: string) => {
+    const ok = StorageService.rejectTeacher(teacherUserId);
+    if (ok) {
+      refreshData();
+      showToast('error', `ปฏิเสธคำขอสมัครของครูผู้สอน "${teacherName}" เรียบร้อยแล้ว`);
+    } else {
+      showToast('error', 'เกิดข้อผิดพลาดในการปฏิเสธคำขอ');
+    }
+  };
+
+  // Quick Assign Teacher to Student
+  const handleQuickAssignTeacher = (studentUserId: string, teacherUserId: string) => {
+    const teacher = users.find((u) => u.id === teacherUserId);
+    if (!teacher) {
+      // Unassign
+      const profiles = StorageService.getStudentProfiles();
+      const idx = profiles.findIndex((p) => p.userId === studentUserId);
+      if (idx >= 0) {
+        profiles[idx] = {
+          ...profiles[idx],
+          assignedTeacherId: undefined,
+          assignedTeacherName: undefined,
+        };
+        StorageService.saveStudentProfiles(profiles);
+        refreshData();
+        showToast('success', 'ยกเลิกการผูกครูผู้ดูแลเรียบร้อย');
+      }
+      return;
+    }
+
+    StorageService.assignStudentTeacher(studentUserId, teacher.id, teacher.name);
+    refreshData();
+    showToast('success', `มอบหมายให้นักเรียนอยู่ในความดูแลของ "ครู${teacher.name}" เรียบร้อย`);
   };
 
   // Filtered users list
@@ -125,14 +193,43 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
       // Role filter
       if (roleFilter !== 'all' && u.role !== roleFilter) return false;
 
+      // Approval filter
+      const userStatus = u.approvalStatus || 'approved';
+      if (approvalFilter !== 'all' && userStatus !== approvalFilter) return false;
+
       // Student / Teacher Profile lookup
       const sProf = studentProfiles.find((p) => p.userId === u.id);
       const tProf = teacherProfiles.find((p) => p.userId === u.id);
 
-      // Class filter (only applies to students)
+      // Class filter (applies to students, and teachers managing that class)
       if (classFilter !== 'all') {
-        if (u.role !== 'student') return false;
-        if (sProf?.classroom !== classFilter) return false;
+        if (u.role === 'student') {
+          if (sProf?.classroom !== classFilter) return false;
+        } else if (u.role === 'teacher') {
+          const managesClass = allClasses.find((c) => c.name === classFilter)?.teacherId === u.id ||
+            tProf?.classesManaged?.includes(classFilter);
+          if (!managesClass) return false;
+        } else {
+          return false;
+        }
+      }
+
+      // Teacher filter (filter by supervisor / in-charge teacher)
+      if (teacherFilter !== 'all') {
+        if (teacherFilter === 'unassigned') {
+          if (u.role === 'student' && sProf?.assignedTeacherId) return false;
+          if (u.role !== 'student') return false;
+        } else {
+          if (u.role === 'student') {
+            const isAssigned = sProf?.assignedTeacherId === teacherFilter;
+            const isClassTeacher = allClasses.find((c) => c.name === sProf?.classroom)?.teacherId === teacherFilter;
+            if (!isAssigned && !isClassTeacher) return false;
+          } else if (u.role === 'teacher') {
+            if (u.id !== teacherFilter) return false;
+          } else {
+            return false;
+          }
+        }
       }
 
       // Search query (name, email, IDs)
@@ -143,14 +240,15 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
         const matchStudentId = sProf?.studentId.toLowerCase().includes(q) || false;
         const matchTeacherId = tProf?.teacherId.toLowerCase().includes(q) || false;
         const matchClass = sProf?.classroom.toLowerCase().includes(q) || false;
-        if (!matchName && !matchEmail && !matchStudentId && !matchTeacherId && !matchClass) {
+        const matchTeacherName = sProf?.assignedTeacherName?.toLowerCase().includes(q) || false;
+        if (!matchName && !matchEmail && !matchStudentId && !matchTeacherId && !matchClass && !matchTeacherName) {
           return false;
         }
       }
 
       return true;
     });
-  }, [users, studentProfiles, teacherProfiles, roleFilter, classFilter, searchQuery]);
+  }, [users, studentProfiles, teacherProfiles, allClasses, roleFilter, classFilter, teacherFilter, approvalFilter, searchQuery]);
 
   // Statistics
   const totalUsersCount = users.length;
@@ -161,16 +259,20 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
   // Open Add Modal
   const handleOpenAddModal = () => {
     const nextStudentNum = studentProfiles.length + 1;
+    // Default teacher for class-1 if available
+    const defaultClassTeacher = users.find((u) => u.id === allClasses[0]?.teacherId);
     setFormData({
       name: '',
       email: '',
       role: 'student',
       password: 'password123',
       studentId: `6701${String(nextStudentNum).padStart(3, '0')}`,
-      classroom: 'ม.1/1',
+      classroom: allClasses[0]?.name || 'ม.1/1',
       seatNumber: nextStudentNum,
       gradeLevel: 'ม.1',
       xp: 150,
+      assignedTeacherId: defaultClassTeacher?.id || '',
+      assignedTeacherName: defaultClassTeacher?.name || '',
       teacherId: `TCH${String(Date.now()).slice(-3)}`,
       schoolName: 'โรงเรียนสาธิตวิทยาการศึกษา',
       subjectTaught: 'เทคโนโลยี (วิทยาการคำนวณ) ม.1',
@@ -195,6 +297,8 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
       seatNumber: sProf?.seatNumber || 1,
       gradeLevel: sProf?.gradeLevel || 'ม.1',
       xp: sProf?.xp || 0,
+      assignedTeacherId: sProf?.assignedTeacherId || '',
+      assignedTeacherName: sProf?.assignedTeacherName || '',
       teacherId: tProf?.teacherId || '',
       schoolName: tProf?.schoolName || 'โรงเรียนสาธิตวิทยาการศึกษา',
       subjectTaught: tProf?.subjectTaught || 'เทคโนโลยี (วิทยาการคำนวณ) ม.1',
@@ -231,6 +335,9 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
             seatNumber: Number(formData.seatNumber) || 1,
             gradeLevel: formData.gradeLevel,
             xp: Number(formData.xp) || 100,
+            assignedTeacherId: formData.assignedTeacherId || undefined,
+            assignedTeacherName: formData.assignedTeacherName || undefined,
+            approvalDate: new Date().toISOString(),
           }
         : undefined,
       formData.role === 'teacher' || formData.role === 'admin'
@@ -273,6 +380,8 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
             seatNumber: Number(formData.seatNumber) || 1,
             gradeLevel: formData.gradeLevel,
             xp: Number(formData.xp) || 0,
+            assignedTeacherId: formData.assignedTeacherId || undefined,
+            assignedTeacherName: formData.assignedTeacherName || undefined,
           }
         : undefined,
       formData.role === 'teacher' || formData.role === 'admin'
@@ -332,12 +441,13 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
 
   // Export CSV of All Users
   const handleExportCSV = () => {
-    const headers = ['User ID', 'ชื่อ-นามสกุล', 'อีเมล', 'บทบาท (Role)', 'รหัสประจำตัว', 'ห้องเรียน/โรงเรียน', 'วันที่สร้าง'];
+    const headers = ['User ID', 'ชื่อ-นามสกุล', 'อีเมล', 'บทบาท (Role)', 'รหัสประจำตัว', 'ห้องเรียน/โรงเรียน', 'ครูผู้ดูแล', 'วันที่สร้าง'];
     const rows = filteredUsers.map((u) => {
       const sProf = studentProfiles.find((p) => p.userId === u.id);
       const tProf = teacherProfiles.find((p) => p.userId === u.id);
       const idCode = u.role === 'student' ? sProf?.studentId || '' : tProf?.teacherId || '';
       const org = u.role === 'student' ? sProf?.classroom || '' : tProf?.schoolName || '';
+      const teacherName = u.role === 'student' ? sProf?.assignedTeacherName || '-' : '-';
       return [
         u.id,
         `"${u.name}"`,
@@ -345,6 +455,7 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
         u.role,
         `"${idCode}"`,
         `"${org}"`,
+        `"${teacherName}"`,
         new Date(u.createdAt).toLocaleDateString('th-TH'),
       ].join(',');
     });
@@ -375,12 +486,13 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
         }
       }
 
-      const headers = ['User ID', 'ชื่อ-นามสกุล', 'อีเมล', 'บทบาท (Role)', 'รหัสประจำตัว', 'ห้องเรียน/โรงเรียน', 'วันที่สร้าง'];
+      const headers = ['User ID', 'ชื่อ-นามสกุล', 'อีเมล', 'บทบาท (Role)', 'รหัสประจำตัว', 'ห้องเรียน/โรงเรียน', 'ครูผู้ดูแล', 'วันที่สร้าง'];
       const rows = filteredUsers.map((u) => {
         const sProf = studentProfiles.find((p) => p.userId === u.id);
         const tProf = teacherProfiles.find((p) => p.userId === u.id);
         const idCode = u.role === 'student' ? sProf?.studentId || '-' : tProf?.teacherId || '-';
         const org = u.role === 'student' ? sProf?.classroom || '-' : tProf?.schoolName || '-';
+        const teacherName = u.role === 'student' ? sProf?.assignedTeacherName || '-' : '-';
         return [
           u.id,
           u.name,
@@ -388,6 +500,7 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
           u.role === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : u.role === 'teacher' ? 'ครูผู้สอน (Teacher)' : 'นักเรียน (Student)',
           idCode,
           org,
+          teacherName,
           new Date(u.createdAt).toLocaleDateString('th-TH'),
         ];
       });
@@ -565,10 +678,147 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
         </div>
       </div>
 
-      {/* Filter & Search Toolbar */}
-      <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-3.5">
-        {/* Search Bar */}
-        <div className="relative w-full md:w-80">
+      {/* Admin Navigation Subtabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-x-auto text-xs sm:text-sm font-semibold">
+        <button
+          id="admin-subtab-users"
+          onClick={() => setAdminSubTab('users')}
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 ${
+            adminSubTab === 'users'
+              ? 'bg-purple-600 text-white font-bold shadow-lg'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>รายชื่อผู้ใช้งานทั้งหมด ({users.length} คน)</span>
+        </button>
+
+        <button
+          id="admin-subtab-teacher-requests"
+          onClick={() => setAdminSubTab('teacher_requests')}
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 ${
+            adminSubTab === 'teacher_requests'
+              ? 'bg-amber-500 text-slate-950 font-bold shadow-lg'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <UserCheck className="w-4 h-4 text-amber-300" />
+          <span>คำขออนุมัติครูใหม่ (Teacher Approvals)</span>
+          {pendingTeachers.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-400 text-slate-950 animate-pulse">
+              {pendingTeachers.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {adminSubTab === 'teacher_requests' && (
+        <div className="space-y-4">
+          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2 font-['Chakra_Petch']">
+                <UserCheck className="w-5 h-5 text-amber-400" />
+                <span>รายการคำขอสมัครเป็นครูผู้สอนที่รอการอนุมัติ</span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                ตามนโยบายความปลอดภัย ครูผู้สอนที่สมัครเข้ามาใหม่จะต้องได้รับการตรวจสอบและกดอนุมัติจากผู้ดูแลระบบ (Admin) ก่อน จึงจะมีสิทธิ์เข้าสู่ระบบ
+              </p>
+            </div>
+            <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-xl font-medium shrink-0">
+              รอการอนุมัติทั้งหมด: <strong className="font-bold text-sm text-white">{pendingTeachers.length}</strong> ท่าน
+            </div>
+          </div>
+
+          {pendingTeachers.length === 0 ? (
+            <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-3xl shadow-xl space-y-3">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h4 className="text-base font-bold text-white">ไม่มีคำขอสมัครครูใหม่ที่รอดำเนินการ</h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                ครูผู้สอนทุกคนในระบบได้รับการอนุมัติเรียบร้อยแล้ว หรือยังไม่มีคำขอสมัครสมาชิกใหม่เข้ามาในขณะนี้
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendingTeachers.map((t) => (
+                <div
+                  key={t.user.id}
+                  className="p-5 rounded-3xl bg-slate-900 border border-amber-500/30 shadow-xl space-y-4 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="flex items-start justify-between gap-3 relative">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={t.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${t.user.id}`}
+                        alt={t.user.name}
+                        className="w-12 h-12 rounded-2xl bg-slate-800 border border-amber-500/40 p-0.5 object-cover shrink-0"
+                      />
+                      <div>
+                        <div className="font-bold text-white text-base flex items-center gap-2">
+                          <span>{t.user.name}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                            รออนุมัติ
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{t.user.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Teacher details */}
+                  <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs space-y-2 text-slate-300">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">รหัสครูผู้สอน:</span>
+                      <span className="font-mono font-bold text-amber-300">{t.profile?.teacherId || 'TCH-NEW'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">สังกัดสถานศึกษา:</span>
+                      <span className="font-semibold text-slate-200">{t.profile?.schoolName || 'โรงเรียนสาธิตวิทยาการศึกษา'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">กลุ่มสาระ / วิชาที่สอน:</span>
+                      <span className="font-semibold text-indigo-300">{t.profile?.subjectTaught || 'วิทยาการคำนวณ ม.1'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">วันที่ส่งคำขอสมัคร:</span>
+                      <span className="text-slate-400">{new Date(t.user.createdAt).toLocaleString('th-TH')}</span>
+                    </div>
+                  </div>
+
+                  {/* Approval Actions */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => handleApproveTeacher(t.user.id, t.user.name)}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg hover:scale-[1.02] active:scale-95"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                      <span>อนุมัติเข้าใช้งาน (Approve)</span>
+                    </button>
+                    <button
+                      onClick={() => handleRejectTeacher(t.user.id, t.user.name)}
+                      className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 border border-slate-700 hover:border-rose-500 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>ปฏิเสธ</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {adminSubTab === 'users' && (
+        <>
+          {/* Filter & Search Toolbar */}
+          <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-3.5">
+            {/* Search Bar */}
+            <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             id="admin-search-user-input"
@@ -633,16 +883,46 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
             </button>
           </div>
 
+          {/* Approval Filter Selector */}
+          <select
+            value={approvalFilter}
+            onChange={(e) => setApprovalFilter(e.target.value as any)}
+            className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-purple-500"
+          >
+            <option value="all">ทุกสถานะการอนุมัติ</option>
+            <option value="approved">✓ อนุมัติแล้ว</option>
+            <option value="pending">⏳ รออนุมัติ</option>
+            <option value="rejected">✕ ปฏิเสธ</option>
+          </select>
+
           {/* Classroom Selector */}
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
             className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-purple-500"
           >
-            <option value="all">ทุกห้องเรียน</option>
-            {allClasses.map((cls) => (
-              <option key={cls.id} value={cls.name}>
-                ห้อง {cls.name}
+            <option value="all">🏫 ทุกห้องเรียน</option>
+            {allClasses.map((cls) => {
+              const classTeacher = users.find((u) => u.id === cls.teacherId);
+              return (
+                <option key={cls.id} value={cls.name}>
+                  ห้อง {cls.name} {classTeacher ? `(ครูผู้ดูแล: ${classTeacher.name})` : ''}
+                </option>
+              );
+            })}
+          </select>
+
+          {/* Teacher Selector */}
+          <select
+            value={teacherFilter}
+            onChange={(e) => setTeacherFilter(e.target.value)}
+            className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-purple-500"
+          >
+            <option value="all">👨‍🏫 คุณครูทุกคน (ทุกครูผู้ดูแล)</option>
+            <option value="unassigned">⚠️ ยังไม่ระบุครูผู้ดูแล</option>
+            {allTeachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                ครู {t.name}
               </option>
             ))}
           </select>
@@ -659,6 +939,7 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
                 <th className="py-3.5 px-4">อีเมล / ช่องทางล็อกอิน</th>
                 <th className="py-3.5 px-4">บทบาท (Role)</th>
                 <th className="py-3.5 px-4">ข้อมูลประจำตัว / ห้องเรียน</th>
+                <th className="py-3.5 px-4">สถานะการอนุมัติ</th>
                 <th className="py-3.5 px-4">XP / สถิติ</th>
                 <th className="py-3.5 px-4 text-center">จัดการผู้ใช้</th>
               </tr>
@@ -666,7 +947,7 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
             <tbody className="divide-y divide-slate-800/80">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     <Users className="w-10 h-10 mx-auto text-slate-600 mb-2" />
                     <p className="text-sm font-semibold">ไม่พบรายชื่อผู้ใช้งานที่ตรงกับเงื่อนไขการค้นหา</p>
                     <p className="text-xs text-slate-600 mt-1">
@@ -753,18 +1034,106 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
                             <div className="text-xs text-slate-400 mt-0.5">
                               ห้อง {sProf?.classroom || 'ม.1/1'} • เลขที่ {sProf?.seatNumber || '-'}
                             </div>
+                            {/* Assigned Teacher Display & Quick Change */}
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              {sProf?.assignedTeacherName ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/30">
+                                  <span>👨‍🏫 ครูผู้ดูแล: {sProf.assignedTeacherName}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-rose-300 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 italic">
+                                  ⚠️ ยังไม่มีครูดูแล
+                                </span>
+                              )}
+                              <select
+                                value={sProf?.assignedTeacherId || ''}
+                                onChange={(e) => handleQuickAssignTeacher(u.id, e.target.value)}
+                                className="text-[10px] bg-slate-950 border border-slate-700 hover:border-purple-500 rounded px-1.5 py-0.5 text-slate-300 focus:outline-none"
+                                title="มอบหมายหรือเปลี่ยนครูผู้ดูแลนักเรียนคนนี้"
+                              >
+                                <option value="">-- กำหนดครูผู้ดูแล --</option>
+                                {allTeachers.map((tch) => (
+                                  <option key={tch.id} value={tch.id}>
+                                    ครู{tch.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                        ) : u.role === 'teacher' || u.role === 'admin' ? (
+                        ) : u.role === 'teacher' ? (
                           <div>
                             <div className="font-semibold text-slate-200">
                               รหัสประจำตัว: <span className="font-mono text-emerald-300 font-bold">{tProf?.teacherId || '-'}</span>
                             </div>
                             <div className="text-xs text-slate-400 mt-0.5">
-                              {tProf?.schoolName || 'สสวท. ม.1'}
+                              {tProf?.schoolName || 'โรงเรียนสาธิตวิทยาการศึกษา'}
+                            </div>
+                            <div className="text-[11px] text-indigo-300 mt-1 flex items-center gap-1">
+                              <span className="text-slate-400">ห้องที่ดูแล:</span>
+                              <span className="font-semibold">
+                                {allClasses.filter((c) => c.teacherId === u.id).map((c) => `ห้อง ${c.name}`).join(', ') ||
+                                  (tProf?.classesManaged && tProf.classesManaged.length > 0
+                                    ? tProf.classesManaged.join(', ')
+                                    : 'ครูผู้สอนส่วนกลาง')}
+                              </span>
+                            </div>
+                          </div>
+                        ) : u.role === 'admin' ? (
+                          <div>
+                            <div className="font-semibold text-slate-200">
+                              รหัสประจำตัว: <span className="font-mono text-amber-300 font-bold">{tProf?.teacherId || 'ADMIN01'}</span>
+                            </div>
+                            <div className="text-xs text-slate-400 mt-0.5">
+                              {tProf?.schoolName || 'ศูนย์ควบคุมระบบส่วนกลาง'}
                             </div>
                           </div>
                         ) : (
                           <span className="text-slate-500">-</span>
+                        )}
+                      </td>
+
+                      {/* Approval Status Badge */}
+                      <td className="py-3.5 px-4">
+                        {u.role === 'admin' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>อนุมัติถาวร</span>
+                          </span>
+                        ) : (u.approvalStatus || 'approved') === 'approved' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>อนุมัติแล้ว</span>
+                          </span>
+                        ) : u.approvalStatus === 'pending' ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                              <span>รออนุมัติ</span>
+                            </span>
+                            {u.role === 'teacher' && (
+                              <button
+                                onClick={() => handleApproveTeacher(u.id, u.name)}
+                                className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow transition-all"
+                              >
+                                อนุมัติ
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                              <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                              <span>ปฏิเสธ</span>
+                            </span>
+                            {u.role === 'teacher' && (
+                              <button
+                                onClick={() => handleApproveTeacher(u.id, u.name)}
+                                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white text-[10px] font-bold border border-slate-700 transition-all"
+                              >
+                                คืนสิทธิ์
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
 
@@ -842,6 +1211,8 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
           </table>
         </div>
       </div>
+    </>
+  )}
 
       {/* ========================================================= */}
       {/* MODAL: ADD USER */}
@@ -1007,6 +1378,31 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
                         onChange={(e) => setFormData({ ...formData, seatNumber: Number(e.target.value) || 1 })}
                         className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                       />
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-3">
+                      <label className="text-[11px] text-slate-400 block mb-1">
+                        ครูผู้ดูแล / ครูประจำชั้น (Assigned Teacher)
+                      </label>
+                      <select
+                        value={formData.assignedTeacherId}
+                        onChange={(e) => {
+                          const t = allTeachers.find((tch) => tch.id === e.target.value);
+                          setFormData({
+                            ...formData,
+                            assignedTeacherId: e.target.value,
+                            assignedTeacherName: t?.name || '',
+                          });
+                        }}
+                        className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="">-- ไม่ระบุ / รอครูกดรับเข้าห้อง --</option>
+                        {allTeachers.map((tch) => (
+                          <option key={tch.id} value={tch.id}>
+                            ครู {tch.name} ({tch.email})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -1227,6 +1623,31 @@ export const AdminUserManager: React.FC<AdminUserManagerProps> = ({
                         onChange={(e) => setFormData({ ...formData, seatNumber: Number(e.target.value) || 1 })}
                         className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                       />
+                    </div>
+
+                    <div className="col-span-3">
+                      <label className="text-[11px] text-slate-400 block mb-1">
+                        ครูผู้ดูแล / ครูประจำชั้น (Assigned Teacher)
+                      </label>
+                      <select
+                        value={formData.assignedTeacherId}
+                        onChange={(e) => {
+                          const t = allTeachers.find((tch) => tch.id === e.target.value);
+                          setFormData({
+                            ...formData,
+                            assignedTeacherId: e.target.value,
+                            assignedTeacherName: t?.name || '',
+                          });
+                        }}
+                        className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="">-- ไม่ระบุ / รอครูกดรับเข้าห้อง --</option>
+                        {allTeachers.map((tch) => (
+                          <option key={tch.id} value={tch.id}>
+                            ครู {tch.name} ({tch.email})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>

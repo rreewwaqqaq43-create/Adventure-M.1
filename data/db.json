@@ -2,12 +2,517 @@
   "videos": null,
   "deleted_video_ids": [],
   "stage_locks": null,
-  "classes": null,
+  "classes": [
+    {
+      "id": "class-1",
+      "name": "ม.1/1",
+      "grade": "ม.1",
+      "academicYear": "2569",
+      "teacherId": "teacher-t01",
+      "assistantTeacherIds": ["teacher-2-natthicha"],
+      "studentCount": 8,
+      "passThresholdPercent": 60
+    },
+    {
+      "id": "class-2",
+      "name": "ม.1/2",
+      "grade": "ม.1",
+      "academicYear": "2569",
+      "teacherId": "teacher-2-natthicha",
+      "assistantTeacherIds": ["teacher-t01"],
+      "studentCount": 4,
+      "passThresholdPercent": 60
+    },
+    {
+      "id": "class-3",
+      "name": "ม.1/3",
+      "grade": "ม.1",
+      "academicYear": "2569",
+      "teacherId": "teacher-t01",
+      "assistantTeacherIds": ["teacher-2-natthicha"],
+      "studentCount": 3,
+      "passThresholdPercent": 60
+    },
+    {
+      "id": "class-4",
+      "name": "ม.1/4",
+      "grade": "ม.1",
+      "academicYear": "2569",
+      "teacherId": "teacher-2-natthicha",
+      "assistantTeacherIds": [],
+      "studentCount": 0,
+      "passThresholdPercent": 60
+    }
+  ],
   "quizzes": null,
   "lessons": null,
   "worksheets": null,
-  "student_profiles": null,
+  "users": [
+    {
+      "id": "admin-1",
+      "email": "admin01@school.ac.th",
+      "name": "ผู้ดูแลระบบ Admin01",
+      "role": "admin",
+      "password": "Admin123",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=Admin01Super",
+      "createdAt": "2026-05-14T07:00:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "teacher-2-natthicha",
+      "email": "6711508546@chandra.ac.th",
+      "name": "อาจารย์ณัฐทิชา บัวสาย",
+      "role": "admin",
+      "password": "000863677",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=NatthichaAdmin",
+      "createdAt": "2026-05-14T07:30:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "teacher-t01",
+      "email": "t01@school.ac.th",
+      "name": "ครูผู้สอน (T01)",
+      "role": "teacher",
+      "password": "T12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=TeacherT01",
+      "createdAt": "2026-05-15T07:00:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s01",
+      "email": "s01@school.ac.th",
+      "name": "นักเรียน (S01)",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=StudentS01",
+      "createdAt": "2026-05-16T07:00:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s02",
+      "email": "s02@school.ac.th",
+      "name": "เด็กหญิงกัญญาณัฐ ปัญญาวงศ์",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=KanyanatS02",
+      "createdAt": "2026-05-16T07:05:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s03",
+      "email": "s03@school.ac.th",
+      "name": "เด็กชายปภพ สุขใจ",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=PaphopS03",
+      "createdAt": "2026-05-16T07:10:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s04",
+      "email": "s04@school.ac.th",
+      "name": "เด็กหญิงมนัสนันท์ ขยันเรียน",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=ManatsananS04",
+      "createdAt": "2026-05-16T07:15:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s05",
+      "email": "s05@school.ac.th",
+      "name": "เด็กชายธนวินท์ รวดเร็ว",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=ThanawinS05",
+      "createdAt": "2026-05-16T07:20:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s06",
+      "email": "s06@school.ac.th",
+      "name": "เด็กหญิงชลธิชา บุญช่วย",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=ChontichaS06",
+      "createdAt": "2026-05-16T07:25:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s07",
+      "email": "s07@school.ac.th",
+      "name": "เด็กชายกิตติศักดิ์ พัฒนา",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=KittisakS07",
+      "createdAt": "2026-05-16T07:30:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s08",
+      "email": "s08@school.ac.th",
+      "name": "เด็กหญิงพิชญา รัตนศิริ",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=PitchayaS08",
+      "createdAt": "2026-05-16T07:35:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s09",
+      "email": "s09@school.ac.th",
+      "name": "เด็กชายภาณุวัฒน์ เด่นดวง",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=PanuwatS09",
+      "createdAt": "2026-05-16T07:40:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s10",
+      "email": "s10@school.ac.th",
+      "name": "เด็กหญิงรักษิณา ใฝ่รู้",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=RaksinaS10",
+      "createdAt": "2026-05-16T07:45:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s11",
+      "email": "s11@school.ac.th",
+      "name": "เด็กชายพีรพัฒน์ ชาญฉลาด",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=PeerapatS11",
+      "createdAt": "2026-05-16T07:50:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s12",
+      "email": "s12@school.ac.th",
+      "name": "เด็กหญิงศศิธร สว่างจิต",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=SasithornS12",
+      "createdAt": "2026-05-16T07:55:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s13",
+      "email": "s13@school.ac.th",
+      "name": "เด็กชายอัครเดช รุ่งเรือง",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=AkaradetS13",
+      "createdAt": "2026-05-16T08:00:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s14",
+      "email": "s14@school.ac.th",
+      "name": "เด็กหญิงสุชาวดี วงศ์สว่าง",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=SuchawadeeS14",
+      "createdAt": "2026-05-16T08:05:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-s15",
+      "email": "s15@school.ac.th",
+      "name": "เด็กชายณภัทร วัฒนากุล",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=NaphatS15",
+      "createdAt": "2026-05-16T08:10:00.000Z",
+      "approvalStatus": "approved"
+    },
+    {
+      "id": "student-p01",
+      "email": "p01@school.ac.th",
+      "name": "เด็กชายจักรินทร์ มีปัญญา",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=JakkarinP01",
+      "createdAt": "2026-05-20T08:00:00.000Z",
+      "approvalStatus": "pending"
+    },
+    {
+      "id": "student-p02",
+      "email": "p02@school.ac.th",
+      "name": "เด็กหญิงนภัสสร รุ่งอรุณ",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=NapatsornP02",
+      "createdAt": "2026-05-20T08:15:00.000Z",
+      "approvalStatus": "pending"
+    },
+    {
+      "id": "student-p03",
+      "email": "p03@school.ac.th",
+      "name": "เด็กชายธีรเดช มั่นคง",
+      "role": "student",
+      "password": "S12345",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=TheeradechP03",
+      "createdAt": "2026-05-20T08:30:00.000Z",
+      "approvalStatus": "pending"
+    }
+  ],
+  "teacher_profiles": [
+    {
+      "userId": "admin-1",
+      "teacherId": "Admin01",
+      "schoolName": "โรงเรียนบางบัวเพ็งตรงการควบคุมคาร",
+      "subjectTaught": "ผู้ดูแลระบบส่วนกลาง (Admin01)",
+      "phoneNumber": "089-999-9999",
+      "classesManaged": ["ม.1/1", "ม.1/2", "ม.1/3", "ม.1/4", "ม.1/5", "ม.1/6"]
+    },
+    {
+      "userId": "teacher-2-natthicha",
+      "teacherId": "6711508546",
+      "schoolName": "โรงเรียนบางบัวเพ็งตรงการควบคุมคาร",
+      "subjectTaught": "ผู้สอนคนที่ 2 (สิทธิ์ Super Admin การจัดการระบบทั้งหมด)",
+      "phoneNumber": "089-888-7766",
+      "classesManaged": ["ม.1/1", "ม.1/2", "ม.1/3", "ม.1/4", "ม.1/5", "ม.1/6"]
+    },
+    {
+      "userId": "teacher-t01",
+      "teacherId": "T01",
+      "schoolName": "โรงเรียนบางบัวเพ็งตรงการควบคุมคาร",
+      "subjectTaught": "เทคโนโลยี (วิทยาการคำนวณ) ม.1 (ผู้สอนคนที่ 1)",
+      "phoneNumber": "081-111-2233",
+      "classesManaged": ["ม.1/1", "ม.1/2", "ม.1/3"]
+    }
+  ],
+  "student_profiles": [
+    {
+      "userId": "student-s01",
+      "studentId": "S01",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 1,
+      "xp": 750,
+      "level": 3,
+      "totalCompletedLessons": 2,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T10:00:00.000Z"
+    },
+    {
+      "userId": "student-s02",
+      "studentId": "S02",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 2,
+      "xp": 1420,
+      "level": 5,
+      "totalCompletedLessons": 5,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T10:05:00.000Z"
+    },
+    {
+      "userId": "student-s03",
+      "studentId": "S03",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 3,
+      "xp": 980,
+      "level": 4,
+      "totalCompletedLessons": 3,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T10:10:00.000Z"
+    },
+    {
+      "userId": "student-s04",
+      "studentId": "S04",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 4,
+      "xp": 1650,
+      "level": 6,
+      "totalCompletedLessons": 6,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T10:15:00.000Z"
+    },
+    {
+      "userId": "student-s05",
+      "studentId": "S05",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 5,
+      "xp": 720,
+      "level": 3,
+      "totalCompletedLessons": 2,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T10:20:00.000Z"
+    },
+    {
+      "userId": "student-s06",
+      "studentId": "S06",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 6,
+      "xp": 1100,
+      "level": 4,
+      "totalCompletedLessons": 4,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T10:25:00.000Z"
+    },
+    {
+      "userId": "student-s07",
+      "studentId": "S07",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 7,
+      "xp": 640,
+      "level": 3,
+      "totalCompletedLessons": 2,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T10:30:00.000Z"
+    },
+    {
+      "userId": "student-s08",
+      "studentId": "S08",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 8,
+      "xp": 1290,
+      "level": 5,
+      "totalCompletedLessons": 4,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T10:35:00.000Z"
+    },
+    {
+      "userId": "student-s09",
+      "studentId": "S09",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/2",
+      "seatNumber": 1,
+      "xp": 950,
+      "level": 4,
+      "totalCompletedLessons": 3,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T10:40:00.000Z"
+    },
+    {
+      "userId": "student-s10",
+      "studentId": "S10",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/2",
+      "seatNumber": 2,
+      "xp": 1380,
+      "level": 5,
+      "totalCompletedLessons": 5,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T10:45:00.000Z"
+    },
+    {
+      "userId": "student-s11",
+      "studentId": "S11",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/2",
+      "seatNumber": 3,
+      "xp": 810,
+      "level": 4,
+      "totalCompletedLessons": 3,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T10:50:00.000Z"
+    },
+    {
+      "userId": "student-s12",
+      "studentId": "S12",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/2",
+      "seatNumber": 4,
+      "xp": 1040,
+      "level": 4,
+      "totalCompletedLessons": 4,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T10:55:00.000Z"
+    },
+    {
+      "userId": "student-s13",
+      "studentId": "S13",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/3",
+      "seatNumber": 1,
+      "xp": 780,
+      "level": 3,
+      "totalCompletedLessons": 2,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T11:00:00.000Z"
+    },
+    {
+      "userId": "student-s14",
+      "studentId": "S14",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/3",
+      "seatNumber": 2,
+      "xp": 1220,
+      "level": 5,
+      "totalCompletedLessons": 4,
+      "assignedTeacherId": "teacher-2-natthicha",
+      "assignedTeacherName": "อาจารย์ณัฐทิชา บัวสาย",
+      "approvalDate": "2026-05-16T11:05:00.000Z"
+    },
+    {
+      "userId": "student-s15",
+      "studentId": "S15",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/3",
+      "seatNumber": 3,
+      "xp": 890,
+      "level": 4,
+      "totalCompletedLessons": 3,
+      "assignedTeacherId": "teacher-t01",
+      "assignedTeacherName": "ครูผู้สอน (T01)",
+      "approvalDate": "2026-05-16T11:10:00.000Z"
+    },
+    {
+      "userId": "student-p01",
+      "studentId": "S16",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/1",
+      "seatNumber": 9,
+      "xp": 100,
+      "level": 1,
+      "totalCompletedLessons": 0
+    },
+    {
+      "userId": "student-p02",
+      "studentId": "S17",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/2",
+      "seatNumber": 5,
+      "xp": 100,
+      "level": 1,
+      "totalCompletedLessons": 0
+    },
+    {
+      "userId": "student-p03",
+      "studentId": "S18",
+      "gradeLevel": "ม.1",
+      "classroom": "ม.1/3",
+      "seatNumber": 4,
+      "xp": 100,
+      "level": 1,
+      "totalCompletedLessons": 0
+    }
+  ],
   "progress_list": null,
-  "updated_at": "2026-10-15T08:02:13.760Z",
-  "description": "CS Adventure M.1 Comprehensive Database"
+  "updated_at": "2026-10-26T15:00:00.000Z",
+  "description": "CS Adventure M.1 Comprehensive Database with Thai Demo Students (S01-S15, P01-P03)"
 }

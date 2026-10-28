@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, StudentProfile, StudentProgress, Lesson, Badge, YouTubeVideo } from './types';
 import { StorageService, initializeDatabaseSync } from './services/storage';
+import { logoutAuth } from './services/auth';
+import { logoutFirebase } from './services/firebase';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { LearningMap } from './components/LearningMap';
@@ -72,10 +74,6 @@ export default function App() {
 
   // Refresh progress and profile
   const refreshUserData = (user: User | null = currentUser) => {
-    const updatedUser = StorageService.getCurrentUser();
-    if (updatedUser) {
-      setCurrentUser(updatedUser);
-    }
     if (!user) {
       setUserProgress([]);
       setStudentProfile(null);
@@ -102,7 +100,10 @@ export default function App() {
     initializeDatabaseSync().then((res) => {
       if (res.synced) {
         setLessons(StorageService.getLessons());
-        refreshUserData(StorageService.getCurrentUser());
+        const savedUser = StorageService.getCurrentUser();
+        if (savedUser) {
+          refreshUserData(savedUser);
+        }
       }
     });
   }, []);
@@ -119,12 +120,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
-  const handleLogout = () => {
-    StorageService.setCurrentUser(null as any);
+  const handleLogout = async () => {
+    try {
+      await logoutAuth();
+      await logoutFirebase();
+    } catch (e) {
+      console.warn('Logout cleanup warning:', e);
+    }
+    StorageService.setCurrentUser(null);
     setCurrentUser(null);
     setUserProgress([]);
     setStudentProfile(null);
     setActiveView('home');
+    setAuthModalOpen(false);
   };
 
   const handleAuthSuccess = (user: User) => {
@@ -158,6 +166,14 @@ export default function App() {
         activeView={activeView as any}
         onNavigate={(view) => setActiveView(view)}
         onOpenAuth={(mode) => {
+          if (!currentUser) {
+            const el = document.getElementById('login-identifier-input');
+            if (el) {
+              el.focus();
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+            }
+          }
           setAuthModalMode(mode || 'login');
           setAuthModalOpen(true);
         }}

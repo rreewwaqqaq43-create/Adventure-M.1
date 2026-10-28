@@ -148,6 +148,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </div>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 ฉายา: <strong className="text-white">{titleInfo.title}</strong> • ห้องเรียน: <strong className="text-slate-200">{studentProfile?.classroom || 'ม.1/1'}</strong> • เลขที่: <strong className="text-slate-200">{studentProfile?.seatNumber || 1}</strong> • รหัส: <strong className="text-amber-300 font-mono font-bold bg-slate-950/60 px-2 py-0.5 rounded border border-amber-500/30">🔒 {studentProfile?.studentId || 'STD-M1'}</strong>
+                {studentProfile?.assignedTeacherName && (
+                  <span> • ครูผู้ดูแล: <strong className="text-emerald-400">{studentProfile.assignedTeacherName}</strong></span>
+                )}
               </p>
               <div className="flex items-center gap-2 mt-2 text-xs text-amber-400">
                 <Sparkles className="w-3.5 h-3.5" />

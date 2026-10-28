@@ -127,7 +127,11 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               >
                 <Award className="w-4 h-4 text-indigo-400" />
                 <span>
-                  {currentUser.role === 'teacher' ? 'ดูแดชบอร์ดครู' : 'ดูความก้าวหน้าของฉัน'}
+                  {currentUser.role === 'admin'
+                    ? 'จัดการระบบ (Admin)'
+                    : currentUser.role === 'teacher'
+                    ? 'ดูแดชบอร์ดครู'
+                    : 'ดูความก้าวหน้าของฉัน'}
                 </span>
               </button>
             )}
