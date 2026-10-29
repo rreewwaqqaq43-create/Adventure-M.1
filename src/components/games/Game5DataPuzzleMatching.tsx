@@ -8,100 +8,111 @@ import confetti from 'canvas-confetti';
 import {
   Sparkles,
   Shuffle,
-  CheckCircle2,
-  XCircle,
   RotateCcw,
-  Palette,
   Eye,
-  Layers,
-  HelpCircle,
   Database,
-  BarChart2,
-  Binary,
-  Award,
   Volume2,
   VolumeX,
-  Flame
+  Flame,
+  CheckCircle2,
+  BookOpen
 } from 'lucide-react';
 import { sfx } from '../../utils/audioEffects';
-import { StorageService } from '../../services/storage';
+import { DataGraphicCard, DataGraphicType } from './DataGraphicCard';
 
 interface Game5DataPuzzleMatchingProps {
   onComplete: (score: number, maxScore: number, xpEarned: number) => void;
 }
 
-interface DataCardPair {
+export interface DataDetectivePair {
   pairId: string;
-  symbol: string;
-  name: string;
+  graphicType: DataGraphicType;
+  title: string;
+  meaning: string;
   detail: string;
-  category: 'SOURCE' | 'ALGO' | 'CHART';
+  textbookRef: string;
 }
 
-const MASTER_DATA_PAIRS: DataCardPair[] = [
+// 8 Official Data Concepts strictly based on สสวท. ม.1 บทที่ 5
+export const MASTER_DATA_PAIRS: DataDetectivePair[] = [
   {
-    pairId: 'dp-1',
-    symbol: '📝 [ข้อมูลปฐมภูมิ]',
-    name: 'เก็บรวบรวมจากแหล่งกำเนิดโดยตรง',
-    detail: 'เช่น การทำแบบสอบถาม การสัมภาษณ์ หรือการสังเกตและจดบันทึกด้วยตนเอง',
-    category: 'SOURCE',
+    pairId: 'dp-primary',
+    graphicType: 'primary_data',
+    title: 'ข้อมูลปฐมภูมิ (Primary Data)',
+    meaning: 'ข้อมูลที่เก็บรวบรวมจากแหล่งกำเนิดโดยตรง',
+    detail: 'เช่น การทำแบบสอบถาม การสัมภาษณ์ หรือการสังเกตและจดบันทึกผลด้วยตนเอง',
+    textbookRef: 'สสวท. ม.1 หน้า 139',
   },
   {
-    pairId: 'dp-2',
-    symbol: '📚 [ข้อมูลทุติยภูมิ]',
-    name: 'อ้างอิงจากข้อมูลที่มีผู้อื่นรวบรวมไว้แล้ว',
-    detail: 'เช่น สถิติประชากรของรัฐ รายงานวิจัย หรือบทความในวารสารวิชาการ',
-    category: 'SOURCE',
+    pairId: 'dp-secondary',
+    graphicType: 'secondary_data',
+    title: 'ข้อมูลทุติยภูมิ (Secondary Data)',
+    meaning: 'ข้อมูลที่มีผู้อื่นเก็บรวบรวมหรือประมวลผลไว้แล้ว',
+    detail: 'เช่น สถิติทางการของรัฐ รายงานวิจัย หรือบทความในวารสารวิชาการ',
+    textbookRef: 'สสวท. ม.1 หน้า 140',
   },
   {
-    pairId: 'dp-3',
-    symbol: '⚖️ [Binary Search: ทวิภาค]',
-    name: 'ค้นหาแบบแบ่งครึ่ง (ข้อมูลต้องเรียงลำดับแล้ว)',
-    detail: 'เปรียบเทียบข้อมูลตัวกลางแล้วตัดครึ่งที่ไม่เกี่ยวข้องทิ้ง ทำงานได้รวดเร็วมาก',
-    category: 'ALGO',
+    pairId: 'dp-bar-chart',
+    graphicType: 'bar_chart',
+    title: 'แผนภูมิแท่ง (Bar Chart)',
+    meaning: 'เปรียบเทียบปริมาณระหว่างหมวดหมู่ข้อมูล',
+    detail: 'เหมาะสำหรับการเปรียบเทียบจำนวนนักเรียนแต่ละห้อง หรือยอดจำหน่ายสินค้า',
+    textbookRef: 'สสวท. ม.1 หน้า 158',
   },
   {
-    pairId: 'dp-4',
-    symbol: '🫧 [Bubble Sort: เรียงแบบฟอง]',
-    name: 'เปรียบเทียบข้อมูลคู่ติดกันแล้วสลับตำแหน่ง',
-    detail: 'นำค่าที่มากกว่าลอยตัวขึ้นไปข้างหน้าเหมือนฟองสบู่จนครบทุกตำแหน่ง',
-    category: 'ALGO',
+    pairId: 'dp-pie-chart',
+    graphicType: 'pie_chart',
+    title: 'แผนภูมิรูปวงกลม (Pie Chart)',
+    meaning: 'แสดงสัดส่วนของแต่ละส่วนเทียบกับทั้งหมด (100%)',
+    detail: 'เหมาะสำหรับการแสดงสัดส่วนค่าใช้จ่าย สัดส่วนเพศ หรือส่วนแบ่งการตลาด',
+    textbookRef: 'สสวท. ม.1 หน้า 159',
   },
   {
-    pairId: 'dp-5',
-    symbol: '📊 [แผนภูมิแท่ง (Bar Chart)]',
-    name: 'เปรียบเทียบปริมาณระหว่างหมวดหมู่',
-    detail: 'เหมาะสำหรับการเปรียบเทียบจำนวนนักเรียนแต่ละห้อง หรือยอดขายสินค้าแต่ละชนิด',
-    category: 'CHART',
+    pairId: 'dp-line-chart',
+    graphicType: 'line_chart',
+    title: 'กราฟเส้น (Line Graph)',
+    meaning: 'แสดงการเปลี่ยนแปลงและแนวโน้มตามลำดับเวลา',
+    detail: 'เหมาะกับข้อมูลที่มีความต่อเนื่องตามเวลา เช่น อุณหภูมิรายชั่วโมง หรือราคาหุ้น',
+    textbookRef: 'สสวท. ม.1 หน้า 160',
   },
   {
-    pairId: 'dp-6',
-    symbol: '📈 [กราฟเส้น (Line Graph)]',
-    name: 'แสดงการเปลี่ยนแปลงและแนวโน้มตามเวลา',
-    detail: 'เหมาะกับข้อมูลที่มีความต่อเนื่อง เช่น อุณหภูมิตลอด 24 ชั่วโมง หรือราคาหุ้น',
-    category: 'CHART',
+    pairId: 'dp-decision-table',
+    graphicType: 'decision_table',
+    title: 'ตารางประเมินทางเลือก (Decision Matrix)',
+    meaning: 'กำหนดเกณฑ์และประเมินเพื่อการตัดสินใจบนฐานข้อมูล',
+    detail: 'ตารางวิเคราะห์เปรียบเทียบทางเลือกด้วยเกณฑ์คะแนนและน้ำหนักความสำคัญอย่างรอบคอบ',
+    textbookRef: 'สสวท. ม.1 หน้า 154',
   },
   {
-    pairId: 'dp-7',
-    symbol: '🥧 [แผนภูมิรูปวงกลม (Pie Chart)]',
-    name: 'แสดงสัดส่วนของแต่ละส่วนเทียบกับทั้งหมด (100%)',
-    detail: 'เหมาะสำหรับการแสดงเปอร์เซ็นต์ค่าใช้จ่ายประจำเดือน หรือสัดส่วนเพศ',
-    category: 'CHART',
+    pairId: 'dp-sorting',
+    graphicType: 'sorting_data',
+    title: 'การเรียงลำดับข้อมูล (Data Sorting)',
+    meaning: 'จัดเรียงข้อมูลจากน้อยไปมาก หรือมากไปน้อย',
+    detail: 'ช่วยให้ค้นหาข้อมูลได้รวดเร็วและวิเคราะห์เปรียบเทียบค่าสูงสุด-ต่ำสุดได้ง่าย',
+    textbookRef: 'สสวท. ม.1 หน้า 148',
+  },
+  {
+    pairId: 'dp-cycle',
+    graphicType: 'processing_cycle',
+    title: 'วงจรการประมวลผลข้อมูล (Data Processing)',
+    meaning: 'กระบวนการแปลงข้อมูลดิบให้เป็นสารสนเทศ',
+    detail: 'Input (ข้อมูลเข้า) -> Process (คำนวณ/จัดกลุ่ม) -> Output (สารสนเทศเพื่อการตัดสินใจ)',
+    textbookRef: 'สสวท. ม.1 หน้า 141',
   },
 ];
 
 interface PlayableCard {
   uniqueId: string;
   pairId: string;
-  type: 'SYMBOL' | 'TEXT';
-  content: string;
+  type: 'GRAPHIC' | 'TEXT';
+  pair: DataDetectivePair;
 }
 
-const AI_CARD_THEMES = [
-  { id: 'matrix', name: 'AI Matrix Emerald', border: 'border-emerald-500/50', cardBack: 'bg-emerald-950/40 text-emerald-400' },
-  { id: 'hologram', name: 'AI Hologram Amber', border: 'border-amber-500/50', cardBack: 'bg-amber-950/40 text-amber-400' },
-  { id: 'crystal', name: 'AI Data Crystal Blue', border: 'border-sky-500/50', cardBack: 'bg-sky-950/40 text-sky-400' },
-  { id: 'neon', name: 'AI Cyber Violet', border: 'border-purple-500/50', cardBack: 'bg-purple-950/40 text-purple-400' },
+const DATA_CARD_THEMES = [
+  { id: 'crystal', name: 'ธีม Data Crystal Sky', cardBack: 'border-sky-500/50 bg-sky-950/40 text-sky-400' },
+  { id: 'matrix', name: 'ธีม Cyber Emerald', cardBack: 'border-emerald-500/50 bg-emerald-950/40 text-emerald-400' },
+  { id: 'hologram', name: 'ธีม Solar Amber', cardBack: 'border-amber-500/50 bg-amber-950/40 text-amber-400' },
+  { id: 'neon', name: 'ธีม Cyber Violet', cardBack: 'border-purple-500/50 bg-purple-950/40 text-purple-400' },
 ];
 
 export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = ({ onComplete }) => {
@@ -110,52 +121,42 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
   const [flippedIds, setFlippedIds] = useState<string[]>([]);
   const [matchedPairIds, setMatchedPairIds] = useState<string[]>([]);
   const [moves, setMoves] = useState(0);
-  const [score, setScore] = useState(0);
+  const [, setScore] = useState(0);
   const [comboStreak, setComboStreak] = useState(0);
   const [floatingPopup, setFloatingPopup] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(sfx.isMuted);
   const [isFinished, setIsFinished] = useState(false);
-
-  // Peek / memorization mode
   const [previewActive, setPreviewActive] = useState(true);
-  const [countdown, setCountdown] = useState(5);
+  const [previewCountdown, setPreviewCountdown] = useState(6);
 
-  const currentTheme = AI_CARD_THEMES[themeIdx];
+  const currentTheme = DATA_CARD_THEMES[themeIdx];
 
+  // Initialize and randomize round (Pick 6 pairs = 12 cards)
   const initGame = () => {
-    // Pick pairs from teacher storage or fallback to MASTER_DATA_PAIRS
-    const customPairs = StorageService.games.getGame5Pairs();
-    const sourcePairs =
-      customPairs && customPairs.length >= 4
-        ? customPairs.map((cp, idx) => ({
-            pairId: cp.pairId || cp.cardId || `card-${idx}`,
-            symbol: cp.symbol || cp.example || cp.term || '📊',
-            name: cp.name || cp.term || 'ข้อมูล',
-            category: cp.category as any,
-          }))
-        : MASTER_DATA_PAIRS;
+    const shuffledPool = [...MASTER_DATA_PAIRS].sort(() => 0.5 - Math.random());
+    const selected = shuffledPool.slice(0, 6);
 
-    const shuffledPool = [...sourcePairs].sort(() => 0.5 - Math.random());
-    const count = Math.min(shuffledPool.length, 6);
-    const selected = shuffledPool.slice(0, count);
-
-    const generated: PlayableCard[] = [];
+    const generatedCards: PlayableCard[] = [];
     selected.forEach((p) => {
-      generated.push({
-        uniqueId: `${p.pairId}-sym`,
+      // Card 1: Real Graphic Illustration of Data concept
+      generatedCards.push({
+        uniqueId: `${p.pairId}-gfx`,
         pairId: p.pairId,
-        type: 'SYMBOL',
-        content: p.symbol || '📊',
+        type: 'GRAPHIC',
+        pair: p,
       });
-      generated.push({
+      // Card 2: Official Meaning & Description Text
+      generatedCards.push({
         uniqueId: `${p.pairId}-txt`,
         pairId: p.pairId,
         type: 'TEXT',
-        content: p.name || 'ข้อมูล',
+        pair: p,
       });
     });
 
-    setCards(generated.sort(() => 0.5 - Math.random()));
+    // Shuffle the 12 cards
+    const randomized = generatedCards.sort(() => 0.5 - Math.random());
+    setCards(randomized);
     setFlippedIds([]);
     setMatchedPairIds([]);
     setMoves(0);
@@ -163,29 +164,32 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
     setComboStreak(0);
     setIsFinished(false);
 
-    // AI theme switch
-    setThemeIdx((prev) => (prev + 1) % AI_CARD_THEMES.length);
+    // Switch theme on restart
+    setThemeIdx((prev) => (prev + 1) % DATA_CARD_THEMES.length);
 
-    // Preview active
+    // Preview Phase: Open cards first for student memorization
     setPreviewActive(true);
-    setCountdown(5);
+    setPreviewCountdown(6);
   };
 
   useEffect(() => {
     initGame();
   }, []);
 
-  // Countdown timer
+  // Preview countdown timer
   useEffect(() => {
     if (!previewActive) return;
-    if (countdown <= 0) {
+    if (previewCountdown <= 0) {
       setPreviewActive(false);
       return;
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [previewActive, countdown]);
+    const timer = setTimeout(() => {
+      setPreviewCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [previewActive, previewCountdown]);
 
+  // Handle Card Click
   const handleCardClick = (card: PlayableCard) => {
     if (previewActive) return;
     if (matchedPairIds.includes(card.pairId)) return;
@@ -197,11 +201,11 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
     setFlippedIds(newFlipped);
 
     if (newFlipped.length === 2) {
-      setMoves((m) => m + 1);
-      const c1 = cards.find((c) => c.uniqueId === newFlipped[0]);
-      const c2 = cards.find((c) => c.uniqueId === newFlipped[1]);
+      setMoves((prev) => prev + 1);
+      const card1 = cards.find((c) => c.uniqueId === newFlipped[0]);
+      const card2 = cards.find((c) => c.uniqueId === newFlipped[1]);
 
-      if (c1 && c2 && c1.pairId === c2.pairId) {
+      if (card1 && card2 && card1.pairId === card2.pairId) {
         // Matched!
         const nextCombo = comboStreak + 1;
         setComboStreak(nextCombo);
@@ -212,26 +216,28 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
           setFloatingPopup(`จับคู่ถูกต้อง! +${earned} XP 🔥 x${nextCombo} STREAK!`);
         } else {
           sfx.playCorrect();
-          setFloatingPopup(`จับคู่ถูกต้อง! +${earned} XP`);
+          setFloatingPopup(`จับคู่ถูกต้อง: ${card1.pair.title}! +${earned} XP`);
         }
         setTimeout(() => setFloatingPopup(null), 1200);
 
         setTimeout(() => {
           setMatchedPairIds((prev) => {
-            const next = [...prev, c1.pairId];
+            const next = [...prev, card1.pairId];
             if (next.length === cards.length / 2) {
+              // Game Complete!
               setIsFinished(true);
               sfx.playVictory();
               const finalScore = Math.max(70, 100 - (moves + 1 - 6) * 4);
-              confetti({ particleCount: 75, spread: 70, origin: { y: 0.6 } });
+              confetti({ particleCount: 85, spread: 75, origin: { y: 0.6 } });
               onComplete(finalScore, 100, 250);
             }
             return next;
           });
           setFlippedIds([]);
-          setScore((s) => s + earned);
+          setScore((prev) => prev + earned);
         }, 500);
       } else {
+        // Not matched - flip back
         setComboStreak(0);
         sfx.playError();
         setTimeout(() => {
@@ -241,11 +247,16 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
     }
   };
 
+  const handleSkipPreview = () => {
+    setPreviewActive(false);
+    setPreviewCountdown(0);
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 text-slate-100 max-w-4xl mx-auto shadow-2xl relative">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 text-slate-100 max-w-5xl mx-auto shadow-2xl relative">
       {/* Floating score / combo popup */}
       {floatingPopup && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none px-4 py-2 rounded-2xl bg-slate-950/90 border border-emerald-400 text-emerald-300 font-bold text-sm sm:text-base shadow-2xl animate-bounce backdrop-blur-md">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none px-5 py-2.5 rounded-2xl bg-slate-950/95 border-2 border-sky-400 text-sky-300 font-bold text-sm sm:text-base shadow-2xl animate-bounce backdrop-blur-md">
           {floatingPopup}
         </div>
       )}
@@ -253,26 +264,26 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <Database className="w-5 h-5" />
+          <div className="w-11 h-11 rounded-2xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-inner">
+            <Database className="w-6 h-6" />
           </div>
           <div>
             <h3 className="font-bold text-lg text-white font-['Chakra_Petch'] flex items-center gap-2">
-              <span>Interactive Quiz & Puzzle: ข้อมูลและการประมวลผล</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span>มินิเกมนักสืบข้อมูล (Data Detective Graphic Matching)</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
                 ม.1 บทที่ 5
               </span>
             </h3>
             <p className="text-xs text-slate-400">
-              เกมจับคู่ภาพกับคำศัพท์และการ์ดทายใจ (AI ลวดลายการ์ดและสุ่มโจทย์ไม่ซ้ำรอบ)
+              จับคู่รูปภาพกราฟิกข้อมูล แหล่งข้อมูล และแผนภูมิการประมวลผล (เปิดไพ่ให้จำก่อนเริ่ม สุ่ม 6 คู่ในแต่ละรอบ)
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {comboStreak >= 2 && (
-            <div className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/50 text-emerald-300 font-bold text-xs flex items-center gap-1 animate-pulse shadow-lg shadow-emerald-500/10">
-              <Flame className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-sky-500/20 to-teal-500/20 border border-sky-500/50 text-sky-300 font-bold text-xs flex items-center gap-1 animate-pulse shadow-lg shadow-sky-500/10">
+              <Flame className="w-3.5 h-3.5 text-sky-400" />
               <span>x{comboStreak} STREAK!</span>
             </div>
           )}
@@ -282,58 +293,65 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
               const muted = sfx.toggleMute();
               setIsMuted(muted);
             }}
+            type="button"
             title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-slate-500" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            {isMuted ? <VolumeX className="w-4 h-4 text-slate-500" /> : <Volume2 className="w-4 h-4 text-sky-400" />}
           </button>
 
           <button
             onClick={initGame}
+            type="button"
             className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
-            title="สุ่มโจทย์และลวดลายการ์ดใหม่"
+            title="สุ่มโจทย์ใหม่"
           >
             <Shuffle className="w-3.5 h-3.5" />
             <span>สุ่มโจทย์ใหม่</span>
           </button>
-          <div className="text-xs px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-emerald-400">
-            คู่ที่เปิดได้: {matchedPairIds.length} / {cards.length / 2}
+
+          <div className="text-xs px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-sky-400 font-bold">
+            จับคู่สำเร็จ: {matchedPairIds.length} / {cards.length / 2}
           </div>
         </div>
       </div>
 
-      {/* Preview Banner */}
+      {/* Preview Phase Notification */}
       {previewActive && (
-        <div className="mt-4 p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse shadow-lg">
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <Eye className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>
-              <strong>เปิดไพ่ให้จดจำก่อนเริ่มเล่น:</strong> จะคว่ำการ์ดในอีก{' '}
-              <span className="font-mono font-bold text-emerald-300 underline">{countdown} วินาที</span>
-            </span>
+        <div className="mt-4 p-3.5 rounded-2xl bg-sky-950/80 border border-sky-500/50 text-sky-200 flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse shadow-xl">
+          <div className="flex items-center gap-3 text-xs sm:text-sm">
+            <Eye className="w-5 h-5 text-sky-400 shrink-0" />
+            <div>
+              <span className="font-bold text-white">ช่วงเวลาจดจำภาพกราฟิก (Preview Phase): </span>
+              <span>ระบบเปิดไพ่ให้ดูภาพประกอบและความหมายก่อนเริ่ม จะคว่ำไพ่ในอีก </span>
+              <span className="font-black text-sky-300 text-base font-mono underline">
+                {previewCountdown} วินาที
+              </span>
+            </div>
           </div>
           <button
-            onClick={() => setPreviewActive(false)}
-            className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow"
+            onClick={handleSkipPreview}
+            type="button"
+            className="px-4 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs shrink-0 transition-colors shadow hover:scale-105"
           >
-            เริ่มคว่ำไพ่เลย
+            จำได้แล้ว! เริ่มเล่นเลย
           </button>
         </div>
       )}
 
-      {/* Info bar */}
-      <div className="mt-3 flex items-center justify-between text-xs text-slate-400 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+      {/* Stats bar */}
+      <div className="mt-3 flex items-center justify-between text-xs text-slate-400 bg-slate-950 px-4 py-2.5 rounded-2xl border border-slate-800">
         <div className="flex items-center gap-2">
-          <Palette className="w-3.5 h-3.5 text-slate-500" />
-          <span>ธีมการ์ด AI: <strong className="text-slate-200">{currentTheme.name}</strong></span>
+          <BookOpen className="w-3.5 h-3.5 text-sky-400" />
+          <span>โหมด: <strong className="text-slate-200">ภาพประกอบการประมวลผลข้อมูล สสวท. (Educational Graphics)</strong></span>
         </div>
         <div>
-          <span>เปิดไปแล้ว: <strong className="text-emerald-400 font-mono">{moves}</strong> ครั้ง</span>
+          <span>เปิดไปแล้ว: <strong className="text-sky-400 font-mono font-bold">{moves}</strong> ครั้ง</span>
         </div>
       </div>
 
       {!isFinished ? (
-        /* Cards Grid */
+        /* Card Grid: 12 Cards (3x4 or 4x3) */
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
           {cards.map((card) => {
             const isFlipped = previewActive || flippedIds.includes(card.uniqueId) || matchedPairIds.includes(card.pairId);
@@ -343,41 +361,76 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
               <div
                 key={card.uniqueId}
                 onClick={() => handleCardClick(card)}
-                className={`relative h-28 sm:h-32 rounded-2xl cursor-pointer select-none transition-all duration-300 transform ${
+                className={`relative min-h-[145px] sm:min-h-[160px] rounded-2xl cursor-pointer select-none transition-all duration-300 transform ${
                   isMatched ? 'opacity-85 scale-95' : 'hover:-translate-y-1'
                 }`}
               >
                 <div
-                  className={`w-full h-full rounded-2xl border transition-all duration-300 p-3 flex flex-col items-center justify-center text-center shadow-lg ${
+                  className={`w-full h-full rounded-2xl border-2 transition-all duration-300 p-3 flex flex-col items-center justify-center text-center shadow-lg ${
                     isFlipped
                       ? isMatched
-                        ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-200 ring-2 ring-emerald-500/40'
-                        : 'bg-slate-950 border-emerald-500/60 text-slate-100 ring-1 ring-emerald-500/30'
-                      : `${currentTheme.cardBack} ${currentTheme.border} hover:border-slate-500`
+                        ? 'bg-emerald-950/60 border-emerald-500 text-emerald-200 ring-2 ring-emerald-500/40 shadow-emerald-900/30'
+                        : 'bg-slate-950 border-sky-500/70 text-slate-100 ring-1 ring-sky-500/30'
+                      : `${currentTheme.cardBack} hover:border-slate-400`
                   }`}
                 >
                   {isFlipped ? (
-                    <div className="space-y-1 animate-fade-in">
-                      <div className="text-xs sm:text-sm font-bold leading-snug">
-                        {card.content}
-                      </div>
-                      <span className="text-[10px] text-slate-400 block font-mono">
-                        {card.type === 'SYMBOL' ? 'คำหลัก / ภาพ' : 'ความหมาย / ตัวอย่าง'}
-                      </span>
+                    <div className="w-full h-full flex flex-col items-center justify-between animate-fade-in space-y-1">
+                      {card.type === 'GRAPHIC' ? (
+                        /* CARD TYPE 1: Real Graphic Illustration */
+                        <>
+                          <div className="flex-1 flex items-center justify-center py-1">
+                            <DataGraphicCard
+                              type={card.pair.graphicType}
+                              size="sm"
+                              className="scale-110 sm:scale-120"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-sky-300 font-bold block truncate max-w-[150px]">
+                              {card.pair.title}
+                            </span>
+                            <span className="text-[9px] text-slate-400 mt-0.5 block">
+                              ภาพประกอบความรู้
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        /* CARD TYPE 2: Meaning & Explanation */
+                        <>
+                          <div className="flex-1 flex flex-col items-center justify-center space-y-1 px-1">
+                            <span className="text-xs sm:text-sm font-black text-amber-300 leading-tight">
+                              {card.pair.meaning}
+                            </span>
+                            <span className="text-[10px] text-slate-300 leading-snug line-clamp-2">
+                              {card.pair.detail}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-mono text-slate-400 block">
+                              นิยาม ({card.pair.textbookRef})
+                            </span>
+                          </div>
+                        </>
+                      )}
+
                       {isMatched && (
-                        <span className="text-[9px] text-emerald-400 font-bold block">
-                          ✓ จับคู่สำเร็จ
-                        </span>
+                        <div className="pt-1 flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>จับคู่สำเร็จ!</span>
+                        </div>
                       )}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center space-y-1 opacity-90">
-                      <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-base shadow-inner">
+                    /* Card Back Pattern */
+                    <div className="flex flex-col items-center justify-center space-y-2 opacity-90">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-900/90 border border-slate-700 flex items-center justify-center text-lg shadow-inner">
                         📊
                       </div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
-                        DATA PUZZLE
-                      </span>
+                      <div className="text-[11px] font-mono font-bold tracking-wider uppercase text-sky-400">
+                        DATA DETECTIVE
+                      </div>
+                      <span className="text-[9px] text-slate-400">คลิกเพื่อเปิดดู</span>
                     </div>
                   )}
                 </div>
@@ -387,32 +440,33 @@ export const Game5DataPuzzleMatching: React.FC<Game5DataPuzzleMatchingProps> = (
         </div>
       ) : (
         /* Finished Screen */
-        <div className="mt-8 py-6 text-center space-y-5">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-4xl shadow-xl">
+        <div className="mt-8 py-8 text-center space-y-5">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-4xl shadow-xl animate-bounce">
             🏆
           </div>
 
           <div>
             <h4 className="text-2xl font-black text-white font-['Chakra_Petch']">
-              ยินดีด้วย! คุณพิชิตการจับคู่ Data Puzzle ครบทุกคู่
+              ยอดเยี่ยมมาก! คุณจับคู่นักสืบข้อมูลได้ถูกต้องครบทุกคู่
             </h4>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              เปิดการ์ด {moves} ครั้ง ได้คะแนนความจำและความเข้าใจข้อมูล {Math.max(70, 100 - (moves - 6) * 4)} คะแนน
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">
+              ใช้จำนวนการเปิดทั้งหมด {moves} ครั้ง เข้าใจการจำแนกข้อมูลปฐมภูมิ-ทุติยภูมิ แผนภูมิ และการประมวลผลข้อมูลเพื่อการตัดสินใจ
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-sm">
-            <Sparkles className="w-4 h-4" />
-            <span>ได้รับ +250 XP พิชิตข้อมูลและการประมวลผล!</span>
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold text-sm shadow-lg">
+            <Sparkles className="w-5 h-5 text-sky-400" />
+            <span>ได้รับ +250 XP พิชิตข้อมูลและการประมวลผล! 📊</span>
           </div>
 
-          <div className="pt-4 flex items-center justify-center gap-3">
+          <div className="pt-3 flex items-center justify-center gap-3">
             <button
               onClick={initGame}
-              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm flex items-center gap-2 transition-colors"
+              type="button"
+              className="px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 transition-all shadow hover:scale-105"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>เล่นใหม่อีกครั้ง (สุ่มโจทย์ใหม่)</span>
+              <span>เล่นรอบใหม่ (สุ่มข้อมูลชุดใหม่)</span>
             </button>
           </div>
         </div>

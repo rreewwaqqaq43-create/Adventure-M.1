@@ -25,6 +25,8 @@ export interface StudentProfile {
   xp: number;
   level: number;
   totalCompletedLessons: number;
+  coins?: number; // เหรียญทองสะสมสำหรับกลไกเกมมิฟิเคชั่น
+  starPoints?: number; // คะแนนสะสมสำหรับจัดอันดับ Leaderboard
   assignedTeacherId?: string; // ครูผู้รับผิดชอบที่กดตอบรับ
   assignedTeacherName?: string; // ชื่อครูผู้รับผิดชอบ
   approvalDate?: string; // วันที่ครูกดตอบรับ

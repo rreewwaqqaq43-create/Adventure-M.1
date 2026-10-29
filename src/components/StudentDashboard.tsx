@@ -152,9 +152,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   <span> • ครูผู้ดูแล: <strong className="text-emerald-400">{studentProfile.assignedTeacherName}</strong></span>
                 )}
               </p>
-              <div className="flex items-center gap-2 mt-2 text-xs text-amber-400">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>คะแนนสะสมวิทยฐานะ: {totalXP} XP (เป้าหมายเลเวลถัดไป: {300 - xpInCurrentLevel} XP)</span>
+              <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                  <span className="text-sm">🪙</span>
+                  <span>เหรียญทองสะสม: {studentProfile?.coins || 150} เหรียญ</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-400">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>คะแนนวิทยฐานะ: {totalXP} XP (สู่เลเวลถัดไป: {300 - xpInCurrentLevel} XP)</span>
+                </span>
               </div>
             </div>
           </div>
@@ -233,7 +239,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
           <div>
             <div className="text-xs font-black text-yellow-300 font-['Chakra_Petch']">🏆 ได้รางวัล/เหรียญ</div>
-            <div className="text-[11px] text-slate-400">ทำภารกิจครบได้เหรียญ</div>
+            <div className="text-[11px] text-slate-300">สะสม {studentProfile?.coins || 150} 🪙 ({userBadges.length} ตรา)</div>
           </div>
         </div>
 

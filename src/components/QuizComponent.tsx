@@ -64,6 +64,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [levelUpMessage, setLevelUpMessage] = useState<string | null>(null);
   const [earnedMedalTitle, setEarnedMedalTitle] = useState<string | null>(null);
+  const [earnedCoins, setEarnedCoins] = useState<number>(50);
 
   if (!isPreTestCompleted && !isPreTest) {
     return (
@@ -139,7 +140,10 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     const xpEarned = finalScore * 20 + 40;
     const passThreshold = Math.ceil(questions.length * 0.6);
     const hasPassed = finalScore >= passThreshold;
+    const coinsEarned = isPreTest ? 50 : (hasPassed ? 100 : 50);
+    setEarnedCoins(coinsEarned);
     setIsFinished(true);
+    setShowReview(true); // "ระบบจะเฉลยคำตอบพร้อมคำอธิบายให้ทราบทั้งหมด อันท้ายสุด"
 
     // Save attempt record for teacher mistake analytics
     const activeUser = currentUser || StorageService.getCurrentUser();
@@ -172,43 +176,29 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
     StorageService.saveQuizAttempt(attempt);
 
-    // Gamification 1: Level Progression (Level 1 -> Level 2...)
-    const profile = StorageService.getStudentProfile(userId);
-    if (profile) {
-      const oldLevel = profile.level || 1;
-      const updatedXP = (profile.xp || 0) + xpEarned;
-      let newLevel = 1;
-      if (updatedXP >= 1650) newLevel = 6;
-      else if (updatedXP >= 1250) newLevel = 5;
-      else if (updatedXP >= 900) newLevel = 4;
-      else if (updatedXP >= 600) newLevel = 3;
-      else if (updatedXP >= 150) newLevel = 2;
-      else newLevel = 1;
+    // Gamification Rewards: Award coins, XP, and badges to profile & update rank
+    const gamificationResult = StorageService.awardGamificationRewards(userId, {
+      coins: coinsEarned,
+      xp: xpEarned,
+      lessonChapter: targetChapter,
+      isLessonCompleted: hasPassed,
+      badgeId: !isPreTest && hasPassed ? (targetChapter === 7 ? 'badge-7' : `badge-${targetChapter}`) : undefined,
+    });
 
-      if (newLevel > oldLevel) {
-        setLevelUpMessage(`🎉 LEVEL UP! เลเวลของคุณเพิ่มขึ้นจาก Level ${oldLevel} เป็น Level ${newLevel}!`);
-      }
-
-      StorageService.updateStudentProfile({
-        ...profile,
-        xp: updatedXP,
-        level: newLevel,
-      });
+    if (gamificationResult.isLevelUp) {
+      setLevelUpMessage(`🎉 LEVEL UP! เลเวลของคุณเพิ่มขึ้นเป็น Level ${gamificationResult.newLevel}!`);
     }
 
-    // Gamification 2: Medal/Badge Rewards (ทำภารกิจครบได้เหรียญ)
+    // Gamification 2: Medal/Badge Rewards
     if (!isPreTest && hasPassed) {
       if (targetChapter === 7) {
         const pct = finalScore / questions.length;
         if (pct >= 0.8) {
-          StorageService.awardBadge(userId, 'badge-7');
           setEarnedMedalTitle('🥇 เหรียญทองคำมหาบัณฑิต 6 บทเรียน (Grandmaster Gold)');
         } else {
-          StorageService.awardBadge(userId, 'badge-7');
           setEarnedMedalTitle('🥈 เหรียญเงินผู้พิชิต 6 บทเรียน (Silver Medal)');
         }
       } else {
-        StorageService.awardBadge(userId, `badge-${targetChapter}`);
         setEarnedMedalTitle(`🏆 เหรียญรางวัลประจำด่านที่ ${targetChapter}`);
       }
     }
@@ -440,50 +430,70 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
           )}
 
           {/* Navigation Controls */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800 gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-slate-800 gap-3">
             <button
+              type="button"
               onClick={handlePrev}
               disabled={currentIdx === 0}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
                 currentIdx === 0
-                  ? 'opacity-40 text-slate-500 cursor-not-allowed'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  ? 'opacity-40 text-slate-500 cursor-not-allowed bg-slate-900 border border-slate-800'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer'
               }`}
             >
               <ArrowLeft className="w-4 h-4" />
               <span>ข้อก่อนหน้า</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              {currentIdx < questions.length - 1 ? (
+            <div className="w-full sm:w-auto flex flex-wrap items-center justify-end gap-2.5">
+              {/* Button: "ข้อถัดไป" (When not on the last question) */}
+              {currentIdx < questions.length - 1 && (
                 <button
+                  type="button"
                   onClick={handleNext}
-                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition-all"
+                  className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                    currentSelected !== undefined
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/25 scale-[1.02]'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                  }`}
                 >
                   <span>ข้อถัดไป</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
-              ) : null}
+              )}
 
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitQuiz}
-                disabled={!isAllAnswered && isPreTest}
-                className={`px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md ${
-                  isAllAnswered || !isPreTest
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 hover:scale-105'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                }`}
-              >
-                <Send className="w-4 h-4" />
-                <span>
-                  {isAllAnswered
-                    ? isPreTest
-                      ? 'ส่งคำตอบแบบทดสอบก่อนเรียน'
-                      : 'ส่งข้อสอบและดูผลคะแนน'
-                    : `ตอบครบแล้วส่ง (${answeredCount}/${questions.length})`}
-                </span>
-              </button>
+              {/* Submit Button: Always accessible when all answered OR when on the final question */}
+              {(currentIdx === questions.length - 1 || isAllAnswered) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAllAnswered) {
+                      const firstUnanswered = questions.findIndex((_, idx) => selectedAnswers[idx] === undefined);
+                      if (firstUnanswered !== -1) {
+                        setCurrentIdx(firstUnanswered);
+                      }
+                      return;
+                    }
+                    handleSubmitQuiz();
+                  }}
+                  className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer ${
+                    isAllAnswered
+                      ? isPreTest
+                        ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 ring-2 ring-amber-400/60 shadow-orange-500/30 scale-105'
+                        : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 ring-2 ring-emerald-400/60 shadow-emerald-500/30 scale-105'
+                      : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40'
+                  }`}
+                >
+                  <Send className="w-4 h-4" />
+                  <span>
+                    {isAllAnswered
+                      ? isPreTest
+                        ? 'ส่งคำตอบแบบทดสอบก่อนเรียน'
+                        : 'ส่งคำตอบแบบทดสอบหลังเรียน'
+                      : `ตอบให้ครบก่อนส่ง (เหลืออีก ${questions.length - answeredCount} ข้อ)`}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -519,8 +529,8 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
               </div>
             )}
 
-            {/* Gamified Score Badges (ตอบถูกได้ 10 คะแนน) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-xl text-center">
+            {/* Gamified Score Badges (ตอบถูกได้ 10 คะแนน พร้อมเหรียญรางวัล) */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-xl text-center">
               <div className="p-3 bg-slate-900/80 rounded-xl border border-amber-500/30">
                 <div className="text-[11px] text-amber-300 font-bold flex items-center justify-center gap-1">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -530,6 +540,17 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
                   +{calculateScore() * 10}
                 </div>
                 <div className="text-[10px] text-slate-400">ข้อละ 10 คะแนน ({calculateScore()}/{questions.length} ข้อ)</div>
+              </div>
+
+              <div className="p-3 bg-slate-900/80 rounded-xl border border-yellow-500/40">
+                <div className="text-[11px] text-yellow-300 font-bold flex items-center justify-center gap-1">
+                  <span>🪙</span>
+                  <span>เหรียญรางวัล</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-yellow-400 font-['Chakra_Petch'] mt-0.5">
+                  +{earnedCoins} 🪙
+                </div>
+                <div className="text-[10px] text-slate-400">รางวัลสะสมในกระเป๋า</div>
               </div>
 
               <div className="p-3 bg-slate-900/80 rounded-xl border border-indigo-500/30">
@@ -554,7 +575,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
                 <div className="text-[10px] text-slate-400">📈 ไต่ระดับสู่ Level ถัดไป</div>
               </div>
 
-              <div className="p-3 bg-slate-900/80 rounded-xl border border-yellow-500/30">
+              <div className="p-3 bg-slate-900/80 rounded-xl border border-yellow-500/30 col-span-2 sm:col-span-1">
                 <div className="text-[11px] text-yellow-300 font-bold flex items-center justify-center gap-1">
                   <Trophy className="w-3.5 h-3.5 text-yellow-400" />
                   <span>เหรียญรางวัล (🏆)</span>
@@ -581,13 +602,13 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
           {/* Toggle Full Review Button */}
           <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-            <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+            <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
               <Eye className="w-4 h-4 text-amber-400" />
-              <span>เฉลยคำตอบละเอียดทุกข้อ (พร้อมคำอธิบาย สสวท. ม.1):</span>
+              <span>ระบบเฉลยคำตอบพร้อมคำอธิบายให้ทราบทั้งหมด (สสวท. ม.1):</span>
             </div>
             <button
               onClick={() => setShowReview((prev) => !prev)}
-              className="text-xs text-amber-400 hover:text-amber-300 font-medium"
+              className="text-xs text-amber-400 hover:text-amber-300 font-medium cursor-pointer"
             >
               {showReview ? 'ซ่อนเฉลย' : 'แสดงเฉลย'}
             </button>

@@ -263,15 +263,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  {/* XP badge strictly for students */}
+                  {/* Coins & XP badges strictly for students */}
                   {currentUser.role === 'student' && currentStudent && (
-                    <div
-                      id="student-xp-pill"
-                      className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-300 text-xs font-semibold"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{currentStudent.xp} XP (Lv.{currentStudent.level})</span>
-                    </div>
+                    <>
+                      <div
+                        id="student-coins-pill"
+                        className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 text-xs font-bold shadow-sm"
+                        title="เหรียญทองสะสมสำหรับกลไกเกมมิฟิเคชั่น"
+                      >
+                        <span className="text-sm">🪙</span>
+                        <span>{currentStudent.coins || 150} เหรียญ</span>
+                      </div>
+                      <div
+                        id="student-xp-pill"
+                        className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-indigo-500/20 border border-indigo-500/40 rounded-full text-indigo-300 text-xs font-semibold"
+                        title="คะแนนสะสมและระดับเลเวล"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{currentStudent.xp} XP (Lv.{currentStudent.level})</span>
+                      </div>
+                    </>
                   )}
 
                   {/* Teacher Role Badge */}

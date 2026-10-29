@@ -40,7 +40,8 @@ interface RankedStudent {
   avatarUrl: string;
   level: number;
   xp: number;
-  starPoints: number; // ตอบถูกข้อละ 10 คะแนน
+  coins: number; // 🪙 เหรียญทองสะสม
+  starPoints: number; // ตอบถูกข้อละ 10 คะแนน + โบนัส
   badgesCount: number; // 🏆 เหรียญรางวัล
   completedStages: number; // 🎯 ภารกิจผ่านด่าน
   isCurrentUser: boolean;
@@ -62,26 +63,27 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     const profiles = StorageService.getStudentProfiles();
     const attempts = StorageService.getQuizAttempts();
 
-    // Default seeded classmates if needed
+    // Default seeded classmates with coins
     const studentSeedList = [
-      { id: 'student-2', name: 'เด็กหญิงมนัสนันท์ ขยันเรียน', classroom: 'ม.1/1', seat: 2, xp: 1250, level: 5, stars: 480, badges: 6, stages: 5 },
-      { id: 'student-1', name: 'เด็กชายปภพ สุขใจ', classroom: 'ม.1/1', seat: 1, xp: 850, level: 3, stars: 320, badges: 3, stages: 3 },
-      { id: 'student-3', name: 'เด็กชายธนวินท์ รวดเร็ว', classroom: 'ม.1/1', seat: 3, xp: 520, level: 2, stars: 210, badges: 2, stages: 2 },
-      { id: 'student-4', name: 'เด็กหญิงกัญญารัตน์ ฉลาดคิด', classroom: 'ม.1/1', seat: 4, xp: 980, level: 4, stars: 390, badges: 4, stages: 4 },
-      { id: 'student-5', name: 'เด็กชายชลธีร์ เทคโนลอยด์', classroom: 'ม.1/1', seat: 5, xp: 420, level: 2, stars: 160, badges: 1, stages: 1 },
-      { id: 'student-6', name: 'เด็กหญิงพิมพ์มาดา รักเรียน', classroom: 'ม.1/2', seat: 1, xp: 1100, level: 4, stars: 430, badges: 5, stages: 4 },
-      { id: 'student-7', name: 'เด็กชายวรเมธ วิทยาการ', classroom: 'ม.1/2', seat: 2, xp: 940, level: 3, stars: 370, badges: 4, stages: 3 },
-      { id: 'student-8', name: 'เด็กหญิงณิชาภา โค้ดแล็บ', classroom: 'ม.1/2', seat: 3, xp: 680, level: 3, stars: 260, badges: 3, stages: 2 },
+      { id: 'student-2', name: 'เด็กหญิงมนัสนันท์ ขยันเรียน', classroom: 'ม.1/1', seat: 2, xp: 1250, coins: 620, level: 5, stars: 480, badges: 6, stages: 5 },
+      { id: 'student-1', name: 'เด็กชายปภพ สุขใจ', classroom: 'ม.1/1', seat: 1, xp: 850, coins: 410, level: 3, stars: 320, badges: 3, stages: 3 },
+      { id: 'student-3', name: 'เด็กชายธนวินท์ รวดเร็ว', classroom: 'ม.1/1', seat: 3, xp: 520, coins: 260, level: 2, stars: 210, badges: 2, stages: 2 },
+      { id: 'student-4', name: 'เด็กหญิงกัญญารัตน์ ฉลาดคิด', classroom: 'ม.1/1', seat: 4, xp: 980, coins: 490, level: 4, stars: 390, badges: 4, stages: 4 },
+      { id: 'student-5', name: 'เด็กชายชลธีร์ เทคโนลอยด์', classroom: 'ม.1/1', seat: 5, xp: 420, coins: 190, level: 2, stars: 160, badges: 1, stages: 1 },
+      { id: 'student-6', name: 'เด็กหญิงพิมพ์มาดา รักเรียน', classroom: 'ม.1/2', seat: 1, xp: 1100, coins: 550, level: 4, stars: 430, badges: 5, stages: 4 },
+      { id: 'student-7', name: 'เด็กชายวรเมธ วิทยาการ', classroom: 'ม.1/2', seat: 2, xp: 940, coins: 470, level: 3, stars: 370, badges: 4, stages: 3 },
+      { id: 'student-8', name: 'เด็กหญิงณิชาภา โค้ดแล็บ', classroom: 'ม.1/2', seat: 3, xp: 680, coins: 340, level: 3, stars: 260, badges: 3, stages: 2 },
     ];
 
     const currentUserId = currentUser?.id || 'anonymous-student';
     const currentUserProgress = StorageService.getProgress(currentUserId);
     const currentUserBadges = StorageService.getUserBadges(currentUserId);
     const currentUserAttempts = attempts.filter((a) => a.userId === currentUserId);
+    const currentCoins = currentStudent?.coins !== undefined ? currentStudent.coins : 350;
 
-    // Calculate current user's star points (⭐ ตอบถูกข้อละ 10 คะแนน)
+    // Calculate current user's star points (⭐ ตอบถูกข้อละ 10 คะแนน + โบนัสเหรียญทอง)
     const quizCorrectCount = currentUserAttempts.reduce((acc, a) => acc + (a.score || 0), 0);
-    const calculatedStarPoints = (quizCorrectCount * 10) + Math.round((currentStudent?.xp || 0) / 4);
+    const calculatedStarPoints = (quizCorrectCount * 10) + Math.round((currentStudent?.xp || 0) / 4) + Math.round(currentCoins / 5);
 
     const completedStagesCount = currentUserProgress.filter((p) => p.status === 'completed').length;
 
@@ -97,6 +99,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           avatarUrl: currentUser?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUserId}`,
           level: currentStudent?.level || 1,
           xp: currentStudent?.xp || 100,
+          coins: currentCoins,
           starPoints: Math.max(seed.stars, calculatedStarPoints),
           badgesCount: Math.max(seed.badges, currentUserBadges.length),
           completedStages: Math.max(seed.stages, completedStagesCount),
@@ -112,6 +115,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${seed.id}`,
         level: seed.level,
         xp: seed.xp,
+        coins: seed.coins,
         starPoints: seed.stars,
         badgesCount: seed.badges,
         completedStages: seed.stages,
@@ -130,6 +134,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         avatarUrl: currentUser?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUserId}`,
         level: currentStudent?.level || 1,
         xp: currentStudent?.xp || 100,
+        coins: currentCoins,
         starPoints: Math.max(100, calculatedStarPoints),
         badgesCount: currentUserBadges.length,
         completedStages: completedStagesCount,
@@ -137,8 +142,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
       });
     }
 
-    // Sort descending by star points, then by level, then by xp
-    return list.sort((a, b) => b.starPoints - a.starPoints || b.level - a.level || b.xp - a.xp);
+    // Sort descending by star points, then by coins, then by level, then by xp
+    return list.sort((a, b) => b.starPoints - a.starPoints || b.coins - a.coins || b.level - a.level || b.xp - a.xp);
   }, [currentUser, currentStudent]);
 
   const myClassroom = currentStudent?.classroom || 'ม.1/1';

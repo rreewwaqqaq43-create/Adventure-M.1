@@ -37,6 +37,17 @@ import {
   getComprehensiveQuiz,
 } from '../data/comprehensiveExamData';
 import {
+  CHAPTER1_PRE_QUESTIONS,
+  CHAPTER1_POST_QUESTIONS,
+  getChapter1Quiz,
+} from '../data/chapter1ExamData';
+import { getChapter2Quiz } from '../data/chapter2ExamData';
+import { getChapter3Quiz } from '../data/chapter3ExamData';
+import { getChapter4Quiz } from '../data/chapter4ExamData';
+import { getChapter5Quiz } from '../data/chapter5ExamData';
+import { getChapter6Quiz } from '../data/chapter6ExamData';
+import { getChapter7Quiz } from '../data/chapter7ExamData';
+import {
   syncAllVideosToFirestore,
   fetchVideosFromFirestore,
   syncGlobalStageLocksToFirestore,
@@ -136,6 +147,13 @@ export async function initializeDatabaseSync(): Promise<{ synced: boolean; messa
         if (currentStdProfiles.length < 10) {
           StorageService.seedDemoStudents(false);
         }
+
+        // Always ensure Chapter 1 uses the 14 questions from โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)
+        const curQuiz1Pre = StorageService.getChapterQuiz(1, 'pre_test');
+        if (!curQuiz1Pre || curQuiz1Pre.questions?.length !== 14) {
+          StorageService.updateQuiz(getChapter1Quiz('pre_test'));
+          StorageService.updateQuiz(getChapter1Quiz('post_test'));
+        }
         serverLoaded = true;
       }
     }
@@ -190,9 +208,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'การแยกรายละเอียดที่สำคัญและจำเป็นออกจากรายละเอียดที่ไม่จำเป็น เพื่อให้แก้ปัญหาได้อย่างมีประสิทธิภาพ',
     textbookPages: 'หนังสือ สสวท. ม.1 หน้า 2–21',
     coverImageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สสวท. Project 14: บทที่ 1 แนวคิดเชิงนามธรรมกับการแก้ปัญหา',
-    videoUrl: 'https://www.youtube.com/watch?v=bI9oX3R9M5w',
-    videoDuration: '11:45 น.',
+    videoTitle: 'สสวท. Project 14: บทที่ 1 แนวคิดเชิงนามธรรม ตอนที่ 1',
+    videoUrl: 'https://www.youtube.com/watch?v=Z4PfMH0GP8I',
+    videoDuration: '11:24 น.',
     coreConcept: 'การคัดแยกคุณลักษณะที่สำคัญและจำเป็นต่อการแก้ปัญหาออกจากรายละเอียดปลีกย่อยที่ไม่จำเป็นในสถานการณ์จริง',
     contentSummary: 'แนวคิดเชิงนามธรรม (Abstraction) เป็นหนึ่งในกระบวนการสำคัญของแนวคิดเชิงคำนวณ โดยมุ่งเน้นเฉพาะข้อมูลหรือคุณลักษณะที่ส่งผลต่อการบรรลุเป้าหมาย เช่น แผนที่รถไฟใต้ดินที่แสดงเฉพาะสถานีเชื่อมต่อโดยไม่แสดงความคดเคี้ยวของรางจริง',
     topics: ['ความหมายของ Abstraction', 'การคัดเลือกข้อมูลที่จำเป็น', 'การถ่ายทอดรายละเอียดปัญหา', 'การทำแผนที่จำลอง'],
@@ -232,7 +250,7 @@ const INITIAL_LESSONS: Lesson[] = [
           'เมื่อคัดเลือกคุณลักษณะที่จำเป็นได้แล้ว ต้องสามารถสื่อสารหรือถ่ายทอดออกมาเป็นข้อความ ภาพร่าง หรือสัญลักษณ์ เพื่อให้ผู้อื่นเข้าใจตรงกันและนำไปสู่การเขียนโปรแกรมได้',
       },
     ],
-    youtubeVideoId: 'bI9oX3R9M5w',
+    youtubeVideoId: 'Z4PfMH0GP8I',
     gameId: 'game-1',
     iconName: 'Sparkles',
     colorTheme: 'from-amber-500 to-orange-600',
@@ -245,9 +263,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'ขั้นตอนการแก้ปัญหาอย่างเป็นระบบ การเขียนรหัสลำลอง และการใช้ผังงาน (Flowchart) จำลองกระบวนการทำงาน',
     textbookPages: 'หนังสือ สสวท. ม.1 หน้า 22–41',
     coverImageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สสวท. Project 14: บทที่ 2 ขั้นตอนการแก้ปัญหาและรหัสลำลอง',
-    videoUrl: 'https://www.youtube.com/watch?v=8f7sD2m8_Wc',
-    videoDuration: '14:10 น.',
+    videoTitle: 'สสวท. Project 14: บทที่ 2 ขั้นตอนการแก้ปัญหา ตอนที่ 1',
+    videoUrl: 'https://www.youtube.com/watch?v=quv7H1qEHoU',
+    videoDuration: '10:45 น.',
     coreConcept: 'การแปลงแนวคิดการแก้ปัญหา 4 ขั้นตอน ให้กลายเป็นรหัสลำลองภาษาธรรมชาติ และผังงานสัญลักษณ์เรขาคณิตมาตรฐานสากล',
     contentSummary: 'การแก้ปัญหาอย่างเป็นระบบเริ่มจาก 1) วิเคราะห์ปัญหา 2) วางแผน 3) ดำเนินการ 4) ตรวจสอบและประเมินผล การเขียนรหัสลำลองช่วยสื่อสารขั้นตอน และผังงาน (Flowchart) ใช้สัญลักษณ์ เช่น Start/Stop, Process, Decision, Input/Output เพื่อแสดงทิศทางการประมวลผล',
     topics: ['4 ขั้นตอนการแก้ปัญหา', 'การเขียนรหัสลำลอง (Pseudocode)', 'สัญลักษณ์ผังงาน (Flowchart)', 'การตัดสินใจและตัวแปร'],
@@ -278,7 +296,7 @@ const INITIAL_LESSONS: Lesson[] = [
           'ตัวแปรใช้สำหรับเก็บค่าข้อมูลที่สามารถเปลี่ยนแปลงได้ในระหว่างการประมวลผล มีการดำเนินการทางคณิตศาสตร์และเปรียบเทียบค่าตรรกะ',
       },
     ],
-    youtubeVideoId: '8f7sD2m8_Wc',
+    youtubeVideoId: 'quv7H1qEHoU',
     gameId: 'game-2',
     iconName: 'Workflow',
     colorTheme: 'from-emerald-500 to-teal-600',
@@ -291,9 +309,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'พื้นฐานการเขียนโค้ดภาษา Python ตัวแปร ชนิดข้อมูล การวนซ้ำ ทางเลือก และคำสั่งเต่าไพทอน (Turtle Graphics)',
     textbookPages: 'หนังสือ สสวท. ม.1 หน้า 42–84',
     coverImageUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สสวท. Project 14: บทที่ 3 พื้นฐานภาษาไพทอน ตัวแปรและการวนซ้ำ',
-    videoUrl: 'https://www.youtube.com/watch?v=pU6J_eN3_xQ',
-    videoDuration: '16:05 น.',
+    videoTitle: 'สสวท. Project 14: บทที่ 3 โปรแกรมและการเขียนโปรแกรมอย่างง่าย ตอนที่ 1',
+    videoUrl: 'https://www.youtube.com/watch?v=_p4ESvNncu0',
+    videoDuration: '12:15 น.',
     coreConcept: 'หลักการเขียนโค้ด Python เบื้องต้น ตัวแปร int, float, str, โครงสร้างควบคุม if-else, วนซ้ำ for/while และการวาดภาพด้วยเต่าไพทอน',
     contentSummary: 'ภาษา Python เป็นภาษาที่กระชับ เหมาะกับผู้เริ่มต้น ในบทนี้นักเรียนจะได้เรียนรู้การใช้คำสั่ง print(), input(), ชนิดข้อมูลตัวเลขและข้อความ โครงสร้างเงื่อนไข if-elif-else และการวนซ้ำ for loop พร้อมทดลองสั่งเต่า turtle เดินหน้า เลี้ยว และวาดรูปทรงเรขาคณิต',
     topics: ['ไวยากรณ์ Python พื้นฐาน', 'ตัวแปรและชนิดข้อมูล', 'คำสั่งเงื่อนไข if-else', 'คำสั่งวนซ้ำ for loop', 'เต่าไพทอน (Turtle Graphics)'],
@@ -325,7 +343,7 @@ const INITIAL_LESSONS: Lesson[] = [
           'for i in range(n) ใช้ทำซ้ำตามจำนวนรอบที่ทราบแน่นอน while condition ทำซ้ำจนกว่าเงื่อนไขจะเป็นเท็จ if...elif...else ใช้ตรวจสอบเงื่อนไขเพื่อเลือกทิศทางการทำงาน',
       },
     ],
-    youtubeVideoId: 'pU6J_eN3_xQ',
+    youtubeVideoId: '_p4ESvNncu0',
     gameId: 'game-3',
     iconName: 'Terminal',
     colorTheme: 'from-blue-500 to-indigo-600',
@@ -338,9 +356,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'การสร้างแอนิเมชันและเกมด้วยบล็อกคำสั่ง Scratch ตัวละคร ตัวแปร เหตุการณ์ การวนซ้ำ และการโต้ตอบ',
     textbookPages: 'หนังสือ สสวท. ม.1 หน้า 88–132',
     coverImageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สสวท. Project 14: บทที่ 4 เริ่มต้นสร้างเกมและแอนิเมชันด้วย Scratch',
-    videoUrl: 'https://www.youtube.com/watch?v=2qH8v_N9xLs',
-    videoDuration: '15:20 น.',
+    videoTitle: 'สสวท. Project 14: บทที่ 4 รู้จัก Scratch และการวนซ้ำ ตอนที่ 1',
+    videoUrl: 'https://www.youtube.com/watch?v=AclazTGBKRw',
+    videoDuration: '15:10 น.',
     coreConcept: 'การใช้บล็อกคำสั่งเชิงภาพ (Block-based Programming) ในการสร้างสรรค์ตัวละคร เวที เสียง ตัวแปร และการตรวจสอบการชนในเกม',
     contentSummary: 'โปรแกรม Scratch ใช้บล็อกต่อคำสั่งแทนการพิมพ์โค้ด ช่วยป้องกันข้อผิดพลาดทางไวยากรณ์ เหมาะสำหรับสร้างเกมและสื่อโต้ตอบ เรียนรู้บล็อกเคลื่อนที่ (Motion), ตรวจจับ (Sensing), ตัวแปร (Variables), และเงื่อนไขแบบวนซ้ำ (forever / repeat until)',
     topics: ['ส่วนประกอบโปรแกรม Scratch', 'บล็อก Motion และ Looks', 'ตัวแปร (Variables) เก็บคะแนน', 'เงื่อนไข if-then และ repeat until'],
@@ -371,7 +389,7 @@ const INITIAL_LESSONS: Lesson[] = [
           'การทำงานแบบมีทางเลือก (Selection) ในโปรแกรม Scratch ใช้บล็อก if <เงื่อนไข> then และ if <เงื่อนไข> then ... else ... เช่น การตรวจจับ touching [edge]? เพื่อสั่งตัวละครกระเด้งกลับ หรือการเปรียบเทียบคะแนนเพื่อเปลี่ยนด่าน',
       },
     ],
-    youtubeVideoId: '2qH8v_N9xLs',
+    youtubeVideoId: 'AclazTGBKRw',
     gameId: 'game-4',
     iconName: 'Puzzle',
     colorTheme: 'from-violet-500 to-purple-600',
@@ -384,9 +402,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'การจำแนกประเภทข้อมูล การรวบรวม การประมวลผล และการสร้างทางเลือกเพื่อการตัดสินใจอย่างมีหลักการ',
     textbookPages: 'หนังสือ สสวท. ม.1 หน้า 136–163',
     coverImageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สสวท. Project 14: บทที่ 5 การรวบรวมและประมวลผลข้อมูลเพื่อการตัดสินใจ',
-    videoUrl: 'https://www.youtube.com/watch?v=m4X8v_L7kNo',
-    videoDuration: '13:15 น.',
+    videoTitle: 'สสวท. Project 14: บทที่ 5 การประมวลผลข้อมูล ตอนที่ 1',
+    videoUrl: 'https://www.youtube.com/watch?v=nFdq-i6fzso',
+    videoDuration: '11:55 น.',
     coreConcept: 'การแยกประเภทข้อมูลปฐมภูมิ-ทุติยภูมิ กระบวนการประมวลผลข้อมูล และการใช้ตารางเกณฑ์ตัดสินใจเลือกทางเลือกที่ดีที่สุด',
     contentSummary: 'ข้อมูลมีอยู่รอบตัวเรา การนำข้อมูลมาใช้ประโยชน์ต้องผ่านกระบวนการรวบรวม การตรวจสอบความถูกต้อง การประมวลผล (หาผลรวม ค่าเฉลี่ย คัดกรอง จัดกลุ่ม) และนำเสนอเป็นกราฟหรือแผนภูมิ เพื่อช่วยให้การตัดสินใจเป็นไปอย่างมีเหตุผลและรอบคอบ',
     topics: ['ข้อมูลปฐมภูมิ vs ทุติยภูมิ', 'ขั้นตอนการประมวลผลข้อมูล', 'การสร้างทางเลือกและการประเมินข้อมูลเพื่อการตัดสินใจ', 'การนำเสนอข้อมูลด้วยแผนภูมิ'],
@@ -417,7 +435,7 @@ const INITIAL_LESSONS: Lesson[] = [
           'การตัดสินใจบนฐานข้อมูล (Data-Driven Decision Making) ใช้ตารางประเมินทางเลือกโดยกำหนดเกณฑ์ (Criteria) และน้ำหนักความสำคัญ ช่วยให้เปรียบเทียบและเลือกทางเลือกที่ดีที่สุดอย่างมีเหตุผลและรอบคอบ',
       },
     ],
-    youtubeVideoId: 'm4X8v_L7kNo',
+    youtubeVideoId: 'nFdq-i6fzso',
     gameId: 'game-5',
     iconName: 'Database',
     colorTheme: 'from-cyan-500 to-sky-600',
@@ -430,9 +448,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'ภัยคุกคามไซเบอร์ การตั้งรหัสผ่านที่รัดกุม การปกป้องข้อมูลส่วนบุคคล ข่าวปลอม และมารยาทดิจิทัล',
     textbookPages: 'หนังสือ สสวท. ม.1 หน้า 164–186',
     coverImageUrl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สสวท. Project 14: บทที่ 6 รู้ทันภัยไซเบอร์และการใช้เทคโนโลยีอย่างปลอดภัย',
-    videoUrl: 'https://www.youtube.com/watch?v=K9m3v_P5xQs',
-    videoDuration: '14:40 น.',
+    videoTitle: 'สสวท. Project 14: บทที่ 6 ตระหนักรู้ตระหนักคิด ตอนที่ 1',
+    videoUrl: 'https://www.youtube.com/watch?v=21vYSY85LQk',
+    videoDuration: '12:30 น.',
     coreConcept: 'การตระหนักรู้และป้องกันภัยคุกคามดิจิทัล การตั้งรหัสผ่านปลอดภัย การรักษาข้อมูลส่วนบุคคล และการปฏิบัติตามจริยธรรมคอมพิวเตอร์',
     contentSummary: 'การใช้งานอินเทอร์เน็ตมีทั้งประโยชน์และความเสี่ยง เช่น มัลแวร์, ฟิชชิ่ง (Phishing), ข่าวปลอม (Fake News), และการละเมิดลิขสิทธิ์ นักเรียนต้องรู้วิธีตั้งรหัสผ่านที่ปลอดภัยอย่างน้อย 8 ตัวอักษร ไม่เผยแพร่ข้อมูลระบุตัวตน (PII) และเคารพสิทธิของผู้อื่นบนโลกไซเบอร์',
     topics: ['ภัยคุกคามทางไซเบอร์ (Malware, Phishing)', 'การตั้งรหัสผ่านที่ปลอดภัย', 'การปกป้องข้อมูลส่วนบุคคล (PDPA)', 'ลิขสิทธิ์และ พ.ร.บ. คอมพิวเตอร์'],
@@ -457,7 +475,7 @@ const INITIAL_LESSONS: Lesson[] = [
           'รหัสผ่านที่ดีควรมีความยาวอย่างน้อย 8 ตัวอักษร ผสมตัวพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และสัญลักษณ์ ไม่ใช้ข้อมูลส่วนตัว เช่น วันเกิด เบอร์โทรศัพท์ และไม่แชร์รหัสผ่านกับผู้อื่น',
       },
     ],
-    youtubeVideoId: 'K9m3v_P5xQs',
+    youtubeVideoId: '21vYSY85LQk',
     gameId: 'game-6',
     iconName: 'ShieldAlert',
     colorTheme: 'from-rose-500 to-red-600',
@@ -470,9 +488,9 @@ const INITIAL_LESSONS: Lesson[] = [
     description: 'คลังข้อสอบวัดผลสัมฤทธิ์รวม 6 บทเรียน มีแบบทดสอบก่อนเรียน 30 ข้อ และแบบทดสอบหลังเรียน 30 ข้อ เพื่อวัดพัฒนาการองค์รวม',
     textbookPages: 'หนังสือ สสวท. ม.1 บทที่ 1–6 ครบหลักสูตร',
     coverImageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=800&auto=format&fit=crop',
-    videoTitle: 'สรุปทบทวนเนื้อหาวิทยาการคำนวณ ม.1 ครบทั้ง 6 บทเรียน',
-    videoUrl: 'https://www.youtube.com/watch?v=bI9oX3R9M5w',
-    videoDuration: '28:40 น.',
+    videoTitle: 'สสวท. Project 14: สรุปทบทวนเนื้อหาวิทยาการคำนวณ ม.1',
+    videoUrl: 'https://www.youtube.com/watch?v=Z4PfMH0GP8I',
+    videoDuration: '11:24 น.',
     coreConcept: 'การประเมินทักษะการคิดเชิงคำนวณ การแก้ปัญหา การเขียนโค้ด และความปลอดภัยไซเบอร์แบบบูรณาการ',
     contentSummary: 'คลังข้อสอบวัดผลสัมฤทธิ์ปลายภาคเรียน ครอบคลุมทุกตัวชี้วัด ว 4.2 ม.1/1 ถึง ม.1/4 รวม 30 ข้อ ก่อนเรียนและหลังเรียน พร้อมระบบวิเคราะห์ความก้าวหน้าและเหรียญรางวัลมหาบัณฑิต',
     topics: ['แนวคิดเชิงนามธรรม', 'ผังงานและขั้นตอนวิธี', 'ภาษาไพทอน', 'บล็อกคำสั่ง Scratch', 'การจัดการข้อมูลและสารสนเทศ', 'ความปลอดภัยทางดิจิทัลและกฎหมายคอมพิวเตอร์'],
@@ -500,25 +518,26 @@ const INITIAL_LESSONS: Lesson[] = [
         content: 'วงจรการประมวลผลข้อมูล การประเมินความน่าเชื่อถือ แหล่งข้อมูลทุติยภูมิ พ.ร.บ.คอมพิวเตอร์ และลิขสิทธิ์ Creative Commons',
       },
     ],
-    youtubeVideoId: 'bI9oX3R9M5w',
+    youtubeVideoId: 'Z4PfMH0GP8I',
     iconName: 'Crown',
     colorTheme: 'from-amber-500 via-purple-600 to-indigo-600',
   },
 ];
 
 // -------------------------------------------------------------
-// SEED DATA: Project 14 & IPST YouTube Videos (6 Chapters)
+// SEED DATA: Project 14 & IPST YouTube Videos (6 Chapters - 19 Episodes)
 // -------------------------------------------------------------
 const INITIAL_VIDEOS: YouTubeVideo[] = [
+  // บทที่ 1: 2 ตอน
   {
     id: 'vid-1-1',
     chapterNumber: 1,
     order: 1,
-    title: 'บทที่ 1: แนวคิดเชิงนามธรรมกับการแก้ปัญหา',
-    description: 'วิดีโอสอนจาก สสวท. Project 14 ทำความเข้าใจแนวคิดเชิงนามธรรมและการคัดเลือกข้อมูลที่จำเป็น',
-    youtubeId: 'bI9oX3R9M5w',
-    duration: '11:45',
-    thumbnailUrl: 'https://img.youtube.com/vi/bI9oX3R9M5w/hqdefault.jpg',
+    title: 'บทที่ 1: แนวคิดเชิงนามธรรม ตอนที่ 1',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 ทำความเข้าใจแนวคิดเชิงนามธรรม (Abstraction) และการคัดเลือกข้อมูลที่จำเป็นในการแก้ปัญหา',
+    youtubeId: 'Z4PfMH0GP8I',
+    duration: '11:24',
+    thumbnailUrl: 'https://img.youtube.com/vi/Z4PfMH0GP8I/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: true,
   },
@@ -526,22 +545,25 @@ const INITIAL_VIDEOS: YouTubeVideo[] = [
     id: 'vid-1-2',
     chapterNumber: 1,
     order: 2,
-    title: 'ตัวอย่างการใช้แนวคิดเชิงนามธรรมในชีวิตประจำวัน',
-    description: 'การวิเคราะห์ปัญหาการจัดระเบียบ การทำแผนที่ และการเลือกเส้นทางเดินรถ',
-    youtubeId: 'W4r5KqfH6Yg',
-    duration: '09:20',
-    thumbnailUrl: 'https://img.youtube.com/vi/W4r5KqfH6Yg/hqdefault.jpg',
+    title: 'บทที่ 1: แนวคิดเชิงนามธรรม ตอนที่ 2',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 ตัวอย่างการประยุกต์ใช้แนวคิดเชิงนามธรรมในชีวิตประจำวันและการถ่ายทอดรายละเอียดปัญหา',
+    youtubeId: 'rNN6DacFVRE',
+    duration: '13:08',
+    thumbnailUrl: 'https://img.youtube.com/vi/rNN6DacFVRE/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
   },
+
+  // บทที่ 2: 2 ตอน
   {
     id: 'vid-2-1',
     chapterNumber: 2,
     order: 3,
-    title: 'บทที่ 2: ขั้นตอนการแก้ปัญหาและรหัสลำลอง',
-    description: 'สสวท. Project 14 สอนการเขียนรหัสลำลอง (Pseudocode) แปลงปัญหาเป็นคำสั่งเป็นขั้นเป็นตอน',
-    youtubeId: '8f7sD2m8_Wc',
-    duration: '14:10',
-    thumbnailUrl: 'https://img.youtube.com/vi/8f7sD2m8_Wc/hqdefault.jpg',
+    title: 'บทที่ 2: ขั้นตอนการแก้ปัญหา ตอนที่ 1',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การวิเคราะห์และกำหนดรายละเอียดของปัญหา กระบวนการวางแผนแก้ปัญหาอย่างเป็นระบบ',
+    youtubeId: 'quv7H1qEHoU',
+    duration: '10:45',
+    thumbnailUrl: 'https://img.youtube.com/vi/quv7H1qEHoU/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: true,
   },
@@ -549,22 +571,25 @@ const INITIAL_VIDEOS: YouTubeVideo[] = [
     id: 'vid-2-2',
     chapterNumber: 2,
     order: 4,
-    title: 'การเขียนผังงาน (Flowchart) ด้วยสัญลักษณ์มาตรฐาน',
-    description: 'ทำความเข้าใจสัญลักษณ์ผังงาน การทำงานแบบลำดับ ทางเลือก และทำซ้ำ',
-    youtubeId: 'zR5H7s9_xY8',
-    duration: '12:35',
-    thumbnailUrl: 'https://img.youtube.com/vi/zR5H7s9_xY8/hqdefault.jpg',
+    title: 'บทที่ 2: การเขียนรหัสลำลองและผังงาน ตอนที่ 2',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การเขียนรหัสลำลอง (Pseudocode) และการใช้ผังงาน (Flowchart) ด้วยสัญลักษณ์เรขาคณิตมาตรฐาน',
+    youtubeId: 'IZuSEQ2TqGw',
+    duration: '14:32',
+    thumbnailUrl: 'https://img.youtube.com/vi/IZuSEQ2TqGw/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
   },
+
+  // บทที่ 3: 4 ตอน
   {
     id: 'vid-3-1',
     chapterNumber: 3,
     order: 5,
-    title: 'บทที่ 3: พื้นฐานภาษาไพทอน ตัวแปรและชนิดข้อมูล',
-    description: 'สสวท. Project 14 แนะนำการเขียนโปรแกรมไพทอนเบื้องต้น ตัวแปร int, float, str',
-    youtubeId: 'pU6J_eN3_xQ',
-    duration: '16:05',
-    thumbnailUrl: 'https://img.youtube.com/vi/pU6J_eN3_xQ/hqdefault.jpg',
+    title: 'บทที่ 3: โปรแกรมและการเขียนโปรแกรมอย่างง่าย ตอนที่ 1',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 แนะนำโปรแกรมคอมพิวเตอร์ ภาษาไพทอน (Python) เบื้องต้น โครงสร้างสคริปต์ และคำสั่งแสดงผล',
+    youtubeId: '_p4ESvNncu0',
+    duration: '12:15',
+    thumbnailUrl: 'https://img.youtube.com/vi/_p4ESvNncu0/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: true,
   },
@@ -572,96 +597,175 @@ const INITIAL_VIDEOS: YouTubeVideo[] = [
     id: 'vid-3-2',
     chapterNumber: 3,
     order: 6,
-    title: 'สนุกกับเต่าไพทอน (Turtle) และคำสั่งวนซ้ำ for',
-    description: 'เขียนโค้ดสั่งเต่าไพทอนวาดภาพเรขาคณิตและใช้คำสั่งวนซ้ำประหยัดบรรทัด',
-    youtubeId: '9bJ2x_mKL5o',
-    duration: '13:50',
-    thumbnailUrl: 'https://img.youtube.com/vi/9bJ2x_mKL5o/hqdefault.jpg',
+    title: 'บทที่ 3: ตัวแปรตัวดำเนินการ ตอนที่ 2',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การประกาศตัวแปร ชนิดข้อมูล int, float, str และตัวดำเนินการคำนวณทางคณิตศาสตร์และตรรกะ',
+    youtubeId: 'GcIBjt5jFjA',
+    duration: '15:20',
+    thumbnailUrl: 'https://img.youtube.com/vi/GcIBjt5jFjA/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
   },
+  {
+    id: 'vid-3-3',
+    chapterNumber: 3,
+    order: 7,
+    title: 'บทที่ 3: การเขียนโปรแกรมแบบวนซ้ำ ตอนที่ 3',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การเขียนโปรแกรมแบบวนซ้ำ (Loop) ด้วยคำสั่ง for และ while เพื่อทำงานซ้ำอย่างมีประสิทธิภาพ',
+    youtubeId: '6hFSsdNQ1jc',
+    duration: '14:50',
+    thumbnailUrl: 'https://img.youtube.com/vi/6hFSsdNQ1jc/hqdefault.jpg',
+    ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
+  },
+  {
+    id: 'vid-3-4',
+    chapterNumber: 3,
+    order: 8,
+    title: 'บทที่ 3: การเขียนโปรแกรมแบบมีทางเลือก ตอนที่ 4',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การเขียนโปรแกรมแบบมีทางเลือกด้วยคำสั่ง if, elif, else ในภาษา Python เพื่อตัดสินใจเงื่อนไข',
+    youtubeId: '_vYP1cP0wI8',
+    duration: '13:40',
+    thumbnailUrl: 'https://img.youtube.com/vi/_vYP1cP0wI8/hqdefault.jpg',
+    ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
+  },
+
+  // บทที่ 4: 4 ตอน
   {
     id: 'vid-4-1',
     chapterNumber: 4,
-    order: 7,
-    title: 'บทที่ 4: การโปรแกรมด้วย Scratch (เริ่มต้นสร้างแอนิเมชันและเกม)',
-    description: 'สสวท. Project 14 สอนใช้งาน Scratch หน้าต่างการทำงาน ตัวละคร และบล็อกเคลื่อนที่',
-    youtubeId: '2qH8v_N9xLs',
-    duration: '15:20',
-    thumbnailUrl: 'https://img.youtube.com/vi/2qH8v_N9xLs/hqdefault.jpg',
+    order: 9,
+    title: 'บทที่ 4: รู้จัก Scratch และการวนซ้ำ ตอนที่ 1',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 รู้จักโปรแกรม Scratch ส่วนประกอบหน้าต่าง เวที ตัวละคร และการใช้บล็อกคำสั่งวนซ้ำพื้นฐาน',
+    youtubeId: 'AclazTGBKRw',
+    duration: '15:10',
+    thumbnailUrl: 'https://img.youtube.com/vi/AclazTGBKRw/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: true,
   },
   {
     id: 'vid-4-2',
     chapterNumber: 4,
-    order: 8,
-    title: 'บทที่ 4 (ตอน 2/4): การทำงานแบบวนซ้ำและการใช้งานตัวแปรใน Scratch',
-    description: 'สสวท. Project 14 แนะนำการวนซ้ำด้วยบล็อก repeat, forever และการสร้างตัวแปรเก็บคะแนน',
-    youtubeId: '2qH8v_N9xLs',
-    duration: '12:40',
-    thumbnailUrl: 'https://img.youtube.com/vi/2qH8v_N9xLs/hqdefault.jpg',
+    order: 10,
+    title: 'บทที่ 4: ตัวแปร ตอนที่ 2',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การสร้างและจัดการตัวแปร (Variables) ใน Scratch สำหรับเก็บค่าคะแนน ตัวนับ และสถานะของเกม',
+    youtubeId: 'sV7HTY8bSIA',
+    duration: '13:30',
+    thumbnailUrl: 'https://img.youtube.com/vi/sV7HTY8bSIA/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: false,
   },
   {
     id: 'vid-4-3',
     chapterNumber: 4,
-    order: 9,
-    title: 'บทที่ 4 (ตอน 3/4): การทำงานแบบมีทางเลือกใน Scratch (If-Then / If-Then-Else)',
-    description: 'สสวท. Project 14 บทที่ 4 ตอน 3/4 การสร้างเงื่อนไขแบบมีทางเลือก การตรวจสอบสัมผัสตัวละคร และคำสั่งตัดสินใจใน Scratch',
-    youtubeId: '2qH8v_N9xLs',
-    duration: '14:15',
-    thumbnailUrl: 'https://img.youtube.com/vi/2qH8v_N9xLs/hqdefault.jpg',
+    order: 11,
+    title: 'บทที่ 4: การทำงานแบบมีทางเลือก ตอนที่ 3',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การทำงานแบบมีทางเลือกด้วยบล็อก if-then และ if-then-else ใน Scratch พร้อมการตรวจจับเหตุการณ์',
+    youtubeId: '36tBA4ciiik',
+    duration: '14:25',
+    thumbnailUrl: 'https://img.youtube.com/vi/36tBA4ciiik/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: false,
   },
   {
+    id: 'vid-4-4',
+    chapterNumber: 4,
+    order: 12,
+    title: 'บทที่ 4: คำสั่งวนซ้ำแบบมีเงื่อนไข ตอนที่ 4',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 คำสั่งวนซ้ำแบบมีเงื่อนไข (repeat until) ใน Scratch การตรวจจับเงื่อนไขจบเกมและการวนซ้ำขั้นสูง',
+    youtubeId: 'aQaiKbJYXe8',
+    duration: '16:05',
+    thumbnailUrl: 'https://img.youtube.com/vi/aQaiKbJYXe8/hqdefault.jpg',
+    ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
+  },
+
+  // บทที่ 5: 5 ตอน
+  {
     id: 'vid-5-1',
     chapterNumber: 5,
-    order: 10,
-    title: 'สสวท. Project 14: บทที่ 5 การรวบรวมและประมวลผลข้อมูลเพื่อการตัดสินใจ',
-    description: 'สสวท. Project 14 เจาะลึกการรวบรวมข้อมูล การประมวลผล และการสร้างตารางเกณฑ์ตัดสินใจเลือกทางเลือกที่ดีที่สุด',
-    youtubeId: 'm4X8v_L7kNo',
-    duration: '13:15',
-    thumbnailUrl: 'https://img.youtube.com/vi/m4X8v_L7kNo/hqdefault.jpg',
+    order: 13,
+    title: 'บทที่ 5: การประมวลผลข้อมูล ตอนที่ 1',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 ความหมายของข้อมูล สารสนเทศ และวงจรการประมวลผลข้อมูล (Data Processing Cycle)',
+    youtubeId: 'nFdq-i6fzso',
+    duration: '11:55',
+    thumbnailUrl: 'https://img.youtube.com/vi/nFdq-i6fzso/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: true,
   },
   {
     id: 'vid-5-2',
     chapterNumber: 5,
-    order: 11,
-    title: 'บทที่ 5 (ตอน 1/3): ข้อมูลและแหล่งข้อมูล (ข้อมูลปฐมภูมิ และข้อมูลทุติยภูมิ)',
-    description: 'สสวท. Project 14 อธิบายความหมายของข้อมูล การจำแนกประเภทข้อมูลปฐมภูมิ vs ทุติยภูมิ และวิธีการจัดเก็บ',
-    youtubeId: 'm4X8v_L7kNo',
-    duration: '11:30',
-    thumbnailUrl: 'https://img.youtube.com/vi/m4X8v_L7kNo/hqdefault.jpg',
+    order: 14,
+    title: 'บทที่ 5: ข้อมูลและการรวบรวมข้อมูล ตอนที่ 2',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 แหล่งข้อมูลปฐมภูมิ ข้อมูลทุติยภูมิ และวิธีการรวบรวมข้อมูลอย่างเหมาะสมและถูกต้อง',
+    youtubeId: 'BQZkHY3qZSQ',
+    duration: '12:40',
+    thumbnailUrl: 'https://img.youtube.com/vi/BQZkHY3qZSQ/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: false,
   },
   {
     id: 'vid-5-3',
     chapterNumber: 5,
-    order: 12,
-    title: 'บทที่ 5 (ตอน 2/3): ขั้นตอนการรวบรวมและการประมวลผลข้อมูลเพื่อการตัดสินใจ',
-    description: 'สสวท. Project 14 อธิบายกระบวนการประมวลผลข้อมูล การจัดกลุ่ม การคำนวณสถิติ และการสร้างทางเลือกประเมินผล',
-    youtubeId: 'm4X8v_L7kNo',
-    duration: '15:10',
-    thumbnailUrl: 'https://img.youtube.com/vi/m4X8v_L7kNo/hqdefault.jpg',
+    order: 15,
+    title: 'บทที่ 5: ข้อมูลและการรวบรวมข้อมูล ตอนที่ 3',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การตรวจสอบความถูกต้อง ความน่าเชื่อถือของแหล่งข้อมูล และการกลั่นกรองข้อมูลก่อนนำไปใช้',
+    youtubeId: 'cAUCUqoQUnc',
+    duration: '13:15',
+    thumbnailUrl: 'https://img.youtube.com/vi/cAUCUqoQUnc/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: false,
   },
   {
+    id: 'vid-5-4',
+    chapterNumber: 5,
+    order: 16,
+    title: 'บทที่ 5: การประมวลผลข้อมูล ตอนที่ 4',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 ขั้นตอนการประมวลผลข้อมูล การคำนวณสถิติ การจัดกลุ่มข้อมูล และการนำเสนอด้วยแผนภูมิชนิดต่างๆ',
+    youtubeId: 'piXZbcpmSa4',
+    duration: '14:20',
+    thumbnailUrl: 'https://img.youtube.com/vi/piXZbcpmSa4/hqdefault.jpg',
+    ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
+  },
+  {
+    id: 'vid-5-5',
+    chapterNumber: 5,
+    order: 17,
+    title: 'บทที่ 5: การสร้างทางเลือก ตอนที่ 5',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การสร้างทางเลือก การกำหนดเกณฑ์ และการประเมินเพื่อการตัดสินใจบนฐานข้อมูล (Data-Driven Decision)',
+    youtubeId: '9dPQtkgMDHU',
+    duration: '15:50',
+    thumbnailUrl: 'https://img.youtube.com/vi/9dPQtkgMDHU/hqdefault.jpg',
+    ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
+  },
+
+  // บทที่ 6: 2 ตอน
+  {
     id: 'vid-6-1',
     chapterNumber: 6,
-    order: 13,
-    title: 'บทที่ 6: รู้ทันภัยไซเบอร์และการใช้เทคโนโลยีอย่างปลอดภัย',
-    description: 'สสวท. Project 14 สรุปภัยคุกคาม Phishing มัลแวร์ และการปฏิบัติตามกฎหมายลิขสิทธิ์',
-    youtubeId: 'K9m3v_P5xQs',
-    duration: '14:40',
-    thumbnailUrl: 'https://img.youtube.com/vi/K9m3v_P5xQs/hqdefault.jpg',
+    order: 18,
+    title: 'บทที่ 6: ตระหนักรู้ตระหนักคิด ตอนที่ 1',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 รู้ทันภัยคุกคามทางไซเบอร์ มัลแวร์ ฟิชชิ่ง การปกป้องข้อมูลส่วนบุคคล และการตั้งรหัสผ่านที่ปลอดภัย',
+    youtubeId: '21vYSY85LQk',
+    duration: '12:30',
+    thumbnailUrl: 'https://img.youtube.com/vi/21vYSY85LQk/hqdefault.jpg',
     ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
     isFeatured: true,
+  },
+  {
+    id: 'vid-6-2',
+    chapterNumber: 6,
+    order: 19,
+    title: 'บทที่ 6: ตระหนักรู้ตระหนักคิด ตอนที่ 2',
+    description: 'วิดีโอสอนจาก สสวท. Project 14 การรู้เท่าทันสื่อ ข่าวปลอม (Fake News) พ.ร.บ.คอมพิวเตอร์ และมารยาทดิจิทัลอย่างสร้างสรรค์',
+    youtubeId: 'eHNsGNn3Qhk',
+    duration: '14:15',
+    thumbnailUrl: 'https://img.youtube.com/vi/eHNsGNn3Qhk/hqdefault.jpg',
+    ipstUrl: 'https://proj14.ipst.ac.th/m1/m1-cs/',
+    isFeatured: false,
   },
 ];
 
@@ -1184,6 +1288,7 @@ export const INITIAL_STUDENT_S01_PROFILE: StudentProfile = {
   seatNumber: 1,
   xp: 750,
   level: 3,
+  coins: 350,
   totalCompletedLessons: 2,
   assignedTeacherId: 'teacher-t01',
   assignedTeacherName: 'ครูผู้สอน (T01)',
@@ -1859,200 +1964,11 @@ const INITIAL_WORKSHEET_SUBMISSIONS: WorksheetSubmission[] = [
 // SEED QUESTIONS: Pre-test & Post-test for Chapters
 // -------------------------------------------------------------
 const INITIAL_QUESTIONS: Question[] = [
-  // Chapter 1 Pre-test
-  {
-    id: 'q-1-pre-1',
-    quizId: 'quiz-1-pre',
-    type: 'multiple_choice',
-    prompt: 'ข้อใดอธิบายความหมายของ "แนวคิดเชิงนามธรรม" (Abstraction) ได้ถูกต้องที่สุด?',
-    choices: [
-      { id: 'c1', text: 'การจำแนกรายละเอียดที่สำคัญและจำเป็นออกจากรายละเอียดที่ไม่จำเป็น', isCorrect: true },
-      { id: 'c2', text: 'การคำนวณตัวเลขทางคณิตศาสตร์ด้วยความรวดเร็ว', isCorrect: false },
-      { id: 'c3', text: 'การนำคอมพิวเตอร์มาใช้งานแทนมนุษย์ในทุกกรณี', isCorrect: false },
-      { id: 'c4', text: 'การค้นหาข้อมูลจากอินเทอร์เน็ตให้ได้มากที่สุด', isCorrect: false },
-    ],
-    explanation: 'แนวคิดเชิงนามธรรมเป็นการคัดแยกคุณลักษณะที่สำคัญจำเป็นต่อการแก้ปัญหาออกจากรายละเอียดปลีกย่อย',
-    textbookReference: 'สสวท. ม.1 หน้า 4',
-    points: 1,
-  },
-  {
-    id: 'q-1-pre-2',
-    quizId: 'quiz-1-pre',
-    type: 'multiple_choice',
-    prompt: 'หากต้องการเดินทางด้วยรถไฟฟ้า ข้อมูลใดจัดเป็น "รายละเอียดที่ไม่จำเป็น" ในการดูแผนที่?',
-    choices: [
-      { id: 'c1', text: 'สถานีเชื่อมต่อระหว่างสาย', isCorrect: false },
-      { id: 'c2', text: 'ลำดับสถานีก่อนถึงจุดหมาย', isCorrect: false },
-      { id: 'c3', text: 'สีของขบวนรถไฟฟ้าและชื่อคนขับ', isCorrect: true },
-      { id: 'c4', text: 'ทิศทางของสถานีปลายทาง', isCorrect: false },
-    ],
-    explanation: 'สีของตัวรถหรือชื่อคนขับไม่มีผลต่อการเดินทางและการเปลี่ยนสถานีของผู้โดยสาร',
-    textbookReference: 'สสวท. ม.1 หน้า 8',
-    points: 1,
-  },
-  {
-    id: 'q-1-pre-3',
-    quizId: 'quiz-1-pre',
-    type: 'true_false',
-    prompt: 'ข้อมูลเดียวกันย่อมเป็นสิ่งจำเป็นสำหรับการแก้ปัญหาของทุกๆ คนในทุกสถานการณ์เสมอ?',
-    choices: [
-      { id: 'c1', text: 'จริง', isCorrect: false },
-      { id: 'c2', text: 'ไม่จริง (ขึ้นอยู่กับวัตถุประสงค์ของการแก้ปัญหา)', isCorrect: true },
-    ],
-    explanation: 'ความจำเป็นของข้อมูลขึ้นอยู่กับเป้าหมายและบทบาทของบุคคล เช่น ช่างซ่อมรถกับผู้ขับขี่ต้องการข้อมูลรถต่างกัน',
-    textbookReference: 'สสวท. ม.1 หน้า 8',
-    points: 1,
-  },
-  {
-    id: 'q-1-pre-4',
-    quizId: 'quiz-1-pre',
-    type: 'multiple_choice',
-    prompt: 'การวาดแผนที่แบบร่างบอกทางจากบ้านมาโรงเรียนโดยไม่วาดต้นไม้ทุกต้นริมถนน จัดเป็นการใช้แนวคิดใด?',
-    choices: [
-      { id: 'c1', text: 'แนวคิดเชิงนามธรรม (Abstraction)', isCorrect: true },
-      { id: 'c2', text: 'การหารูปแบบ (Pattern Recognition)', isCorrect: false },
-      { id: 'c3', text: 'การแยกส่วนประกอบ (Decomposition)', isCorrect: false },
-      { id: 'c4', text: 'การออกแบบขั้นตอนวิธี (Algorithm)', isCorrect: false },
-    ],
-    explanation: 'การตัดต้นไม้หรือสิ่งก่อสร้างที่ไม่ใช่จุดสังเกตสำคัญออก เพื่อเน้นเส้นทางเลี้ยว',
-    textbookReference: 'สสวท. ม.1 หน้า 9',
-    points: 1,
-  },
-  {
-    id: 'q-1-pre-5',
-    quizId: 'quiz-1-pre',
-    type: 'multiple_choice',
-    prompt: 'การเตรียมกระเป๋านักเรียนตามตารางสอน สิ่งใดคือข้อมูลจำเป็นในการจัดกระเป๋า?',
-    choices: [
-      { id: 'c1', text: 'วิชาและอุปกรณ์ที่ต้องใช้ในวันนั้น', isCorrect: true },
-      { id: 'c2', text: 'ราคาของสมุดแต่ละเล่ม', isCorrect: false },
-      { id: 'c3', text: 'สีของตู้เสื้อผ้าที่บ้าน', isCorrect: false },
-      { id: 'c4', text: 'ชื่อโรงงานที่ผลิตดินสอ', isCorrect: false },
-    ],
-    explanation: 'วิชาในตารางสอนและอุปกรณ์ที่ครูกำหนดคือข้อมูลที่ตรงกับเป้าหมายการเรียนในวันนั้น',
-    textbookReference: 'สสวท. ม.1 หน้า 20',
-    points: 1,
-  },
+  // Chapter 1 Pre-test (14 Questions from โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร))
+  ...CHAPTER1_PRE_QUESTIONS,
 
-  // Chapter 1 Post-test (8 questions)
-  {
-    id: 'q-1-post-1',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'แผนผังเส้นทางรถไฟใต้ดินกรุงลอนดอนที่ออกแบบโดย Harry Beck มีความโดดเด่นอย่างไรในเชิงวิทยาการคำนวณ?',
-    choices: [
-      { id: 'c1', text: 'ตัดความคดเคี้ยวตามภูมิศาสตร์จริงออก เพื่อให้ดูสายเชื่อมต่อและสถานีได้ง่าย', isCorrect: true },
-      { id: 'c2', text: 'ระบุตำแหน่งต้นไม้และอาคารบนผิวดินอย่างละเอียดที่สุด', isCorrect: false },
-      { id: 'c3', text: 'ใช้สีเดียวตลอดทั้งสายเพื่อความประหยัด', isCorrect: false },
-      { id: 'c4', text: 'แสดงความเร็วของขบวนรถแบบเรียลไทม์', isCorrect: false },
-    ],
-    explanation: 'เป็นตัวอย่างคลาสสิกของแนวคิดเชิงนามธรรมที่คัดทิ้งพิกัดภูมิศาสตร์ที่ไม่จำเป็นต่อผู้โดยสาร',
-    textbookReference: 'สสวท. ม.1 หน้า 5',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-2',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'หากต้องการซื้ออาหารกลางวันเพื่อสุขภาพ ข้อมูลใด "จำเป็นที่สุด" ในการตัดสินใจ?',
-    choices: [
-      { id: 'c1', text: 'คุณค่าทางโภชนาการและสารอาหาร', isCorrect: true },
-      { id: 'c2', text: 'สีของจานที่ใส่อาหาร', isCorrect: false },
-      { id: 'c3', text: 'ยี่ห้อของพัดลมในร้านอาหาร', isCorrect: false },
-      { id: 'c4', text: 'ความยาวของโต๊ะอาหาร', isCorrect: false },
-    ],
-    explanation: 'คุณค่าทางโภชนาการตรงตามเป้าหมายการซื้ออาหารเพื่อสุขภาพ',
-    textbookReference: 'สสวท. ม.1 หน้า 8',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-3',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'การถ่ายทอดรายละเอียดของปัญหาและการแก้ปัญหา นิยมนำเสนอด้วยวิธีใด?',
-    choices: [
-      { id: 'c1', text: 'ข้อความ แผนภาพ หรือแบบจำลองเชิงนามธรรม', isCorrect: true },
-      { id: 'c2', text: 'การเก็บข้อมูลไว้ในใจโดยไม่บันทึก', isCorrect: false },
-      { id: 'c3', text: 'การเขียนโค้ดโดยไม่ต้องวางแผนล่วงหน้า', isCorrect: false },
-      { id: 'c4', text: 'การท่องจำตัวเลขทั้งหมด', isCorrect: false },
-    ],
-    explanation: 'การถ่ายทอดรายละเอียดทำได้ทั้งการอธิบายด้วยคำพูด ข้อความ แผนภาพ หรือผังจำลอง',
-    textbookReference: 'สสวท. ม.1 หน้า 9',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-4',
-    quizId: 'quiz-1-post',
-    type: 'true_false',
-    prompt: 'การที่โปรแกรมจดจำใบหน้าตรวจจับเฉพาะระยะห่างระหว่างตา จมูก ปาก โดยไม่สนใจสีเสื้อผ้า ถือเป็นแนวคิดเชิงนามธรรม?',
-    choices: [
-      { id: 'c1', text: 'ถูก (ใช่ เพราะคัดเฉพาะจุดสำคัญของใบหน้า)', isCorrect: true },
-      { id: 'c2', text: 'ผิด (ไม่ใช่)', isCorrect: false },
-    ],
-    explanation: 'อัลกอริทึมจดจำใบหน้าจะกรองเอาเฉพาะโครงสร้างเรขาคณิตของใบหน้า ตัดสีเสื้อหรือฉากหลังออก',
-    textbookReference: 'สสวท. ม.1 หน้า 12',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-5',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'ข้อใดไม่ใช่ประโยชน์ของการใช้แนวคิดเชิงนามธรรม?',
-    choices: [
-      { id: 'c1', text: 'ทำให้ได้รายละเอียดปลีกย่อยเพิ่มขึ้นเรื่อยๆ จนซับซ้อนขึ้น', isCorrect: true },
-      { id: 'c2', text: 'ช่วยให้เข้าใจแก่นแท้ของปัญหาได้ชัดเจน', isCorrect: false },
-      { id: 'c3', text: 'ลดความซ้ำซ้อนในการเขียนโปรแกรม', isCorrect: false },
-      { id: 'c4', text: 'สามารถนำวิธีการแก้ปัญหาไปปรับใช้กับปัญหาอื่นที่คล้ายกันได้', isCorrect: false },
-    ],
-    explanation: 'แนวคิดเชิงนามธรรมช่วยลดความซับซ้อน ไม่ใช่เพิ่มรายละเอียดจนยุ่งยาก',
-    textbookReference: 'สสวท. ม.1 หน้า 4',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-6',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'ปภพต้องการเดินทางจากบ้านไปสนามบินให้ทันเวลา ข้อมูลใดไม่ส่งผลต่อการวางแผน?',
-    choices: [
-      { id: 'c1', text: 'เพลงที่เปิดฟังในห้องนอนเมื่อเช้า', isCorrect: true },
-      { id: 'c2', text: 'เวลาเครื่องบินออก', isCorrect: false },
-      { id: 'c3', text: 'สภาพการจราจรบนเส้นทาง', isCorrect: false },
-      { id: 'c4', text: 'ระยะเวลาที่ต้องใช้ในการเช็คอิน', isCorrect: false },
-    ],
-    explanation: 'เพลงที่เปิดฟังเมื่อเช้าไม่มีผลต่อเวลาและเส้นทางเดินทาง',
-    textbookReference: 'สสวท. ม.1 หน้า 20',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-7',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'สัญลักษณ์ในแอปพลิเคชัน เช่น ไอคอนรูป "แว่นขยาย" สื่อถึงสิ่งใดในเชิงนามธรรม?',
-    choices: [
-      { id: 'c1', text: 'การค้นหาข้อมูล (Search)', isCorrect: true },
-      { id: 'c2', text: 'การส่งข้อความ', isCorrect: false },
-      { id: 'c3', text: 'การตั้งค่าระบบ', isCorrect: false },
-      { id: 'c4', text: 'การลบข้อมูล', isCorrect: false },
-    ],
-    explanation: 'ไอคอนแว่นขยายเป็นตัวแทนเชิงนามธรรมที่มนุษย์เข้าใจตรงกันว่าคือการค้นหา',
-    textbookReference: 'สสวท. ม.1 หน้า 9',
-    points: 1,
-  },
-  {
-    id: 'q-1-post-8',
-    quizId: 'quiz-1-post',
-    type: 'multiple_choice',
-    prompt: 'ในกิจกรรมท้ายบท หน้า 20 การออกแบบโมเดลบ้านจำลอง สิ่งใดควรแสดงในแปลนพื้น?',
-    choices: [
-      { id: 'c1', text: 'ตำแหน่งประตู หน้าต่าง และขนาดห้อง', isCorrect: true },
-      { id: 'c2', text: 'มดทุกตัวที่กำลังเดินอยู่ใต้ดิน', isCorrect: false },
-      { id: 'c3', text: 'ยี่ห้อหลอดไฟในห้องเพื่อนบ้าน', isCorrect: false },
-      { id: 'c4', text: 'สีรองเท้าของช่างก่อสร้าง', isCorrect: false },
-    ],
-    explanation: 'แปลนพื้นสถาปัตยกรรมจะเน้นสัดส่วนห้อง ประตู หน้าต่าง และผนัง',
-    textbookReference: 'สสวท. ม.1 หน้า 20',
-    points: 1,
-  },
+  // Chapter 1 Post-test (14 Questions from โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร))
+  ...CHAPTER1_POST_QUESTIONS,
 
   // Chapter 2 Questions (Flowchart & Pseudocode)
   {
@@ -2890,20 +2806,20 @@ const INITIAL_QUESTIONS: Question[] = [
 // SEED DATA: Quizzes
 // -------------------------------------------------------------
 const INITIAL_QUIZZES: Quiz[] = [
-  { id: 'quiz-1-pre', chapterNumber: 1, title: 'แบบทดสอบก่อนเรียน บทที่ 1: แนวคิดเชิงนามธรรม', type: 'pre_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-1-post', chapterNumber: 1, title: 'แบบทดสอบหลังเรียน บทที่ 1: แนวคิดเชิงนามธรรม', type: 'post_test', totalQuestions: 8, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-2-pre', chapterNumber: 2, title: 'แบบทดสอบก่อนเรียน บทที่ 2: การแก้ปัญหาและผังงาน', type: 'pre_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-2-post', chapterNumber: 2, title: 'แบบทดสอบหลังเรียน บทที่ 2: การแก้ปัญหาและผังงาน', type: 'post_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-3-pre', chapterNumber: 3, title: 'แบบทดสอบก่อนเรียน บทที่ 3: ภาษาไพทอน', type: 'pre_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-3-post', chapterNumber: 3, title: 'แบบทดสอบหลังเรียน บทที่ 3: ภาษาไพทอน', type: 'post_test', totalQuestions: 6, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-4-pre', chapterNumber: 4, title: 'แบบทดสอบก่อนเรียน บทที่ 4: โปรแกรม Scratch', type: 'pre_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-4-post', chapterNumber: 4, title: 'แบบทดสอบหลังเรียน บทที่ 4: โปรแกรม Scratch', type: 'post_test', totalQuestions: 6, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-5-pre', chapterNumber: 5, title: 'แบบทดสอบก่อนเรียน บทที่ 5: ข้อมูลและการประมวลผล', type: 'pre_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-5-post', chapterNumber: 5, title: 'แบบทดสอบหลังเรียน บทที่ 5: ข้อมูลและการประมวลผล', type: 'post_test', totalQuestions: 6, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-6-pre', chapterNumber: 6, title: 'แบบทดสอบก่อนเรียน บทที่ 6: การใช้เทคโนโลยีอย่างปลอดภัย', type: 'pre_test', totalQuestions: 5, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-6-post', chapterNumber: 6, title: 'แบบทดสอบหลังเรียน บทที่ 6: การใช้เทคโนโลยีอย่างปลอดภัย', type: 'post_test', totalQuestions: 6, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-7-pre', chapterNumber: 7, title: 'แบบทดสอบวัดผลสัมฤทธิ์ก่อนเรียน รวม 6 บท (Comprehensive Pre-test 30 ข้อ)', type: 'pre_test', totalQuestions: 30, passThresholdPercent: 60, isEnabled: true },
-  { id: 'quiz-7-post', chapterNumber: 7, title: 'แบบทดสอบวัดผลสัมฤทธิ์หลังเรียน รวม 6 บท (Comprehensive Post-test 30 ข้อ)', type: 'post_test', totalQuestions: 30, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-1-pre', chapterNumber: 1, title: 'ข้อสอบปรนัย (Pre-Test) บทที่ 1: แนวคิดเชิงนามธรรม โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 14, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-1-post', chapterNumber: 1, title: 'ข้อสอบปรนัย (Post-Test) บทที่ 1: แนวคิดเชิงนามธรรม โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 14, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-2-pre', chapterNumber: 2, title: 'ข้อสอบปรนัย (Pre-Test) บทที่ 2: การแก้ปัญหา โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-2-post', chapterNumber: 2, title: 'ข้อสอบปรนัย (Post-Test) บทที่ 2: การแก้ปัญหา โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-3-pre', chapterNumber: 3, title: 'ข้อสอบปรนัย (Pre-Test) บทที่ 3: การโปรแกรมด้วยภาษาไพทอน โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-3-post', chapterNumber: 3, title: 'ข้อสอบปรนัย (Post-Test) บทที่ 3: การโปรแกรมด้วยภาษาไพทอน โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-4-pre', chapterNumber: 4, title: 'ข้อสอบปรนัย (Pre-Test) บทที่ 4: การโปรแกรมด้วย Scratch โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-4-post', chapterNumber: 4, title: 'ข้อสอบปรนัย (Post-Test) บทที่ 4: การโปรแกรมด้วย Scratch โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-5-pre', chapterNumber: 5, title: 'ข้อสอบปรนัย (Pre-Test) บทที่ 5: ข้อมูลและการประมวลผล โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-5-post', chapterNumber: 5, title: 'ข้อสอบปรนัย (Post-Test) บทที่ 5: ข้อมูลและการประมวลผล โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 15, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-6-pre', chapterNumber: 6, title: 'ข้อสอบปรนัย (Pre-Test) บทที่ 6: การใช้เทคโนโลยีสารสนเทศอย่างปลอดภัย โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 14, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-6-post', chapterNumber: 6, title: 'ข้อสอบปรนัย (Post-Test) บทที่ 6: การใช้เทคโนโลยีสารสนเทศอย่างปลอดภัย โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 14, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-7-pre', chapterNumber: 7, title: 'ข้อสอบปรนัย (Pre-Test) ด่านที่ 7: แบบวัดผลสัมฤทธิ์รวม 6 บทเรียน โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'pre_test', totalQuestions: 30, passThresholdPercent: 60, isEnabled: true },
+  { id: 'quiz-7-post', chapterNumber: 7, title: 'ข้อสอบปรนัย (Post-Test) ด่านที่ 7: แบบวัดผลสัมฤทธิ์รวม 6 บทเรียน โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร)', type: 'post_test', totalQuestions: 30, passThresholdPercent: 60, isEnabled: true },
 ];
 
 // Initial Chat messages
@@ -4099,6 +4015,18 @@ export const StorageService = {
       }
     });
 
+    // Ensure all student profiles have coins initialized
+    profiles = profiles.map((p) => {
+      if (p.coins === undefined) {
+        updated = true;
+        return {
+          ...p,
+          coins: Math.max(150, Math.round((p.xp || 100) * 0.45)),
+        };
+      }
+      return p;
+    });
+
     if (updated || profiles.length === 0) {
       setLocal('student_profiles', profiles);
     }
@@ -4115,12 +4043,104 @@ export const StorageService = {
     const profiles = StorageService.getStudentProfiles();
     const idx = profiles.findIndex((p) => p.userId === profile.userId);
     if (idx >= 0) {
-      // Deep merge to preserve existing XP, completed lessons, level, and all stats
+      // Deep merge to preserve existing XP, coins, completed lessons, level, and all stats
       profiles[idx] = { ...profiles[idx], ...profile };
     } else {
       profiles.push(profile);
     }
     StorageService.saveStudentProfiles(profiles);
+  },
+
+  // Gamification Mechanics: Award coins, XP, badge, and compute classroom leaderboard rank
+  awardGamificationRewards: (
+    userId: string,
+    params: {
+      coins: number;
+      xp: number;
+      badgeId?: string;
+      lessonChapter?: number;
+      isLessonCompleted?: boolean;
+    }
+  ): {
+    updatedProfile: StudentProfile;
+    earnedCoins: number;
+    earnedXp: number;
+    newTotalCoins: number;
+    newTotalXp: number;
+    newLevel: number;
+    isLevelUp: boolean;
+    unlockedBadge: boolean;
+    rankInClass: number;
+    totalInClass: number;
+  } => {
+    const profiles = StorageService.getStudentProfiles();
+    let stu = profiles.find((p) => p.userId === userId);
+    if (!stu) {
+      stu = {
+        userId,
+        studentId: 'STD-M1',
+        gradeLevel: 'ม.1',
+        classroom: 'ม.1/1',
+        seatNumber: 1,
+        xp: 100,
+        level: 1,
+        coins: 150,
+        totalCompletedLessons: 0,
+      };
+      profiles.push(stu);
+    }
+
+    const prevLevel = stu.level || 1;
+    const currentCoins = stu.coins !== undefined ? stu.coins : Math.max(150, Math.round((stu.xp || 100) * 0.45));
+    const newCoins = currentCoins + params.coins;
+    const newXp = (stu.xp || 0) + params.xp;
+    const newLevel = Math.floor(newXp / 300) + 1;
+    const isLevelUp = newLevel > prevLevel;
+
+    let unlockedBadge = false;
+    if (params.badgeId) {
+      const existingBadges = StorageService.getUserBadges(userId);
+      if (!existingBadges.includes(params.badgeId)) {
+        StorageService.awardBadge(userId, params.badgeId);
+        unlockedBadge = true;
+      }
+    }
+
+    const allProg = StorageService.getProgress(userId);
+    const completedCount = allProg.filter((p) => p.status === 'completed').length;
+
+    const updatedProfile: StudentProfile = {
+      ...stu,
+      coins: newCoins,
+      xp: newXp,
+      level: newLevel,
+      totalCompletedLessons: Math.max(stu.totalCompletedLessons || 0, completedCount),
+    };
+
+    StorageService.updateStudentProfile(updatedProfile);
+
+    // Compute classroom ranking
+    const classmates = StorageService.getStudentProfiles().filter((p) => p.classroom === updatedProfile.classroom);
+    const sorted = [...classmates].sort((a, b) => {
+      const scoreA = (a.xp || 0) + (a.coins || 0) * 2;
+      const scoreB = (b.xp || 0) + (b.coins || 0) * 2;
+      return scoreB - scoreA;
+    });
+    const myRankIdx = sorted.findIndex((p) => p.userId === userId);
+    const rankInClass = myRankIdx >= 0 ? myRankIdx + 1 : 1;
+
+    return {
+      updatedProfile,
+      earnedCoins: params.coins,
+      earnedXp: params.xp,
+      newTotalCoins: newCoins,
+      newTotalXp: newXp,
+      newLevel,
+      isLevelUp,
+      unlockedBadge,
+      rankInClass,
+      totalInClass: classmates.length || 1,
+    };
   },
 
   // Teacher Profile
@@ -4500,15 +4520,15 @@ export const StorageService = {
         order: l.order ?? (index + 1),
         isHidden: l.isHidden ?? false,
         coverImageUrl: l.coverImageUrl || seed?.coverImageUrl,
-        videoTitle: l.videoTitle || seed?.videoTitle,
-        videoUrl: l.videoUrl || seed?.videoUrl,
-        videoDuration: l.videoDuration || seed?.videoDuration,
+        videoTitle: seed?.videoTitle || l.videoTitle,
+        videoUrl: seed?.videoUrl || l.videoUrl,
+        videoDuration: seed?.videoDuration || l.videoDuration,
         coreConcept: l.coreConcept !== undefined ? l.coreConcept : seed?.coreConcept,
         contentSummary: l.contentSummary !== undefined ? l.contentSummary : seed?.contentSummary,
         topics: l.topics || seed?.topics,
         objectives: l.objectives !== undefined ? l.objectives : seed?.objectives,
         summarySections: l.summarySections !== undefined ? l.summarySections : seed?.summarySections,
-        youtubeVideoId: l.youtubeVideoId || seed?.youtubeVideoId,
+        youtubeVideoId: seed?.youtubeVideoId || l.youtubeVideoId,
         quiz: l.quiz || StorageService.getChapterQuiz(l.chapterNumber, 'post_test'),
       };
     }).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -4575,12 +4595,19 @@ export const StorageService = {
     const mapped = combined
       .map((v, index) => {
         const seed = INITIAL_VIDEOS.find((init) => init.id === v.id);
+        const isOfficialSeed = Boolean(seed);
         return {
           ...seed,
           ...v,
+          // Always ensure the official IPST YouTube video ID, duration, thumbnail and titles
+          youtubeId: isOfficialSeed ? seed!.youtubeId : v.youtubeId,
+          title: isOfficialSeed ? seed!.title : v.title,
+          description: isOfficialSeed ? seed!.description : v.description,
+          duration: isOfficialSeed ? seed!.duration : (v.duration || '12:00'),
+          thumbnailUrl: isOfficialSeed ? seed!.thumbnailUrl : (v.thumbnailUrl || `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`),
+          ipstUrl: isOfficialSeed ? seed!.ipstUrl : v.ipstUrl,
           order: v.order !== undefined ? v.order : (seed?.order ?? index + 1),
           isHidden: v.isHidden ?? false,
-          thumbnailUrl: v.thumbnailUrl || seed?.thumbnailUrl || `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`,
           isFeatured: v.isFeatured !== undefined ? v.isFeatured : (seed?.isFeatured ?? false),
         };
       })
@@ -4791,9 +4818,16 @@ export const StorageService = {
   // Quizzes & Questions
   getQuizzes: (): Quiz[] => {
     let list = getLocal<Quiz[]>('quizzes', INITIAL_QUIZZES);
+    const expectedCounts: Record<number, number> = { 1: 14, 2: 15, 3: 15, 4: 15, 5: 15, 6: 14, 7: 30 };
     INITIAL_QUIZZES.forEach((init) => {
-      if (!list.some((q) => q.id === init.id)) {
+      const existingIdx = list.findIndex((q) => q.id === init.id);
+      if (existingIdx === -1) {
         list.push(init);
+      } else {
+        const expected = expectedCounts[init.chapterNumber];
+        if (expected && list[existingIdx].totalQuestions !== expected) {
+          list[existingIdx] = init;
+        }
       }
     });
     return list;
@@ -4810,12 +4844,34 @@ export const StorageService = {
       (q) => (q.id === standardQuizId) || (q.chapterNumber === chapterNumber && q.type === type)
     );
 
-    // Special handling for Chapter 7 Comprehensive Final Exam (30 questions)
+    // Official exams from โรงเรียนบางบัว(เพงตรงจิตวิทยาคาร) for all chapters
+    if (chapterNumber === 1) {
+      if (targetQuiz?.questions && targetQuiz.questions.length === 14) return targetQuiz;
+      return getChapter1Quiz(type);
+    }
+    if (chapterNumber === 2) {
+      if (targetQuiz?.questions && targetQuiz.questions.length === 15) return targetQuiz;
+      return getChapter2Quiz(type);
+    }
+    if (chapterNumber === 3) {
+      if (targetQuiz?.questions && targetQuiz.questions.length === 15) return targetQuiz;
+      return getChapter3Quiz(type);
+    }
+    if (chapterNumber === 4) {
+      if (targetQuiz?.questions && targetQuiz.questions.length === 15) return targetQuiz;
+      return getChapter4Quiz(type);
+    }
+    if (chapterNumber === 5) {
+      if (targetQuiz?.questions && targetQuiz.questions.length === 15) return targetQuiz;
+      return getChapter5Quiz(type);
+    }
+    if (chapterNumber === 6) {
+      if (targetQuiz?.questions && targetQuiz.questions.length === 14) return targetQuiz;
+      return getChapter6Quiz(type);
+    }
     if (chapterNumber === 7) {
-      if (targetQuiz?.questions && targetQuiz.questions.length > 0) {
-        return targetQuiz;
-      }
-      return getComprehensiveQuiz(type);
+      if (targetQuiz?.questions && targetQuiz.questions.length === 30) return targetQuiz;
+      return getChapter7Quiz(type);
     }
 
     // If the quiz already has in-memory questions populated and preserved
@@ -4931,8 +4987,16 @@ export const StorageService = {
   },
 
   resetQuizToDefault: (chapterNumber: number, type: 'pre_test' | 'post_test'): Quiz => {
-    if (chapterNumber === 7) {
-      const defaultQuiz = getComprehensiveQuiz(type);
+    let defaultQuiz: Quiz | null = null;
+    if (chapterNumber === 1) defaultQuiz = getChapter1Quiz(type);
+    else if (chapterNumber === 2) defaultQuiz = getChapter2Quiz(type);
+    else if (chapterNumber === 3) defaultQuiz = getChapter3Quiz(type);
+    else if (chapterNumber === 4) defaultQuiz = getChapter4Quiz(type);
+    else if (chapterNumber === 5) defaultQuiz = getChapter5Quiz(type);
+    else if (chapterNumber === 6) defaultQuiz = getChapter6Quiz(type);
+    else if (chapterNumber === 7) defaultQuiz = getChapter7Quiz(type);
+
+    if (defaultQuiz) {
       StorageService.updateQuiz(defaultQuiz);
       return defaultQuiz;
     }

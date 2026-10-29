@@ -9,6 +9,8 @@ import { StorageService } from '../services/storage';
 import { syncQuizToFirestore } from '../services/firebase';
 import { GameContainer } from './games/GameContainer';
 import { QuizComponent } from './QuizComponent';
+import { GamificationRewardModal } from './common/GamificationRewardModal';
+import { LeaderboardModal } from './LeaderboardModal';
 import { sfx } from '../utils/audioEffects';
 import {
   extractYouTubeId,
@@ -147,6 +149,26 @@ export const LessonDetailModal: React.FC<LessonDetailModalProps> = ({
   });
   const [badgeSaveMsg, setBadgeSaveMsg] = useState<string | null>(null);
 
+  // Gamification Reward Modal & Leaderboard Modal states
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardModalData, setRewardModalData] = useState<{
+    rewardType: 'minigame' | 'chapter_completed' | 'quiz_passed';
+    title: string;
+    subtitle: string;
+    earnedCoins: number;
+    earnedXp: number;
+    newTotalCoins: number;
+    newTotalXp: number;
+    newLevel: number;
+    isLevelUp?: boolean;
+    badgeName?: string;
+    badgeIcon?: string;
+    classroom?: string;
+    rankInClass?: number;
+    totalInClass?: number;
+  } | null>(null);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+
   // Stage Lock state: Check if this chapter is locked (globally or specifically for student's classroom)
   const [lockUpdateKey, setLockUpdateKey] = useState(0);
   const allClasses = useMemo(() => StorageService.getClasses(), [lockUpdateKey]);
@@ -220,6 +242,9 @@ export const LessonDetailModal: React.FC<LessonDetailModalProps> = ({
 
   React.useEffect(() => {
     setContentEditForm(lesson);
+    if (lesson.youtubeVideoId) {
+      setCurrentVideoId(lesson.youtubeVideoId);
+    }
   }, [lesson]);
 
   // Quiz edit state with teacher editing support
@@ -723,18 +748,36 @@ export const LessonDetailModal: React.FC<LessonDetailModalProps> = ({
     }
 
     StorageService.saveProgress(newProg);
-    StorageService.awardBadge(currentUser.id, lesson.badgeRewardId || 'badge-1');
 
-    // Update user XP
-    const profiles = StorageService.getStudentProfiles();
-    const stuProfile = profiles.find((p) => p.userId === currentUser.id);
-    if (stuProfile) {
-      StorageService.updateStudentProfile({
-        ...stuProfile,
-        xp: stuProfile.xp + xpEarned,
-        level: Math.floor((stuProfile.xp + xpEarned) / 300) + 1,
-      });
-    }
+    // Calculate earned coins based on performance
+    const ratio = maxScore > 0 ? score / maxScore : 1;
+    const earnedCoins = ratio >= 0.95 ? 100 : ratio >= 0.75 ? 75 : 50;
+
+    // Gamification Mechanics: Award coins, XP, badge, and compute classroom rank
+    const gamificationRes = StorageService.awardGamificationRewards(currentUser.id, {
+      coins: earnedCoins,
+      xp: xpEarned,
+      badgeId: lesson.badgeRewardId || `badge-${lesson.chapterNumber}`,
+      lessonChapter: lesson.chapterNumber,
+    });
+
+    setRewardModalData({
+      rewardType: 'minigame',
+      title: `🎉 พิชิตมินิเกมบทที่ ${lesson.chapterNumber} สำเร็จ!`,
+      subtitle: `${lesson.title} • ได้รับเหรียญและคะแนนสะสมจัดอันดับห้องเรียน`,
+      earnedCoins,
+      earnedXp: xpEarned,
+      newTotalCoins: gamificationRes.newTotalCoins,
+      newTotalXp: gamificationRes.newTotalXp,
+      newLevel: gamificationRes.newLevel,
+      isLevelUp: gamificationRes.isLevelUp,
+      badgeName: badge?.name || `เหรียญตราประจำบทที่ ${lesson.chapterNumber}`,
+      badgeIcon: badge?.icon || '🎮',
+      classroom: gamificationRes.updatedProfile.classroom || 'ม.1/1',
+      rankInClass: gamificationRes.rankInClass,
+      totalInClass: gamificationRes.totalInClass,
+    });
+    setShowRewardModal(true);
 
     onProgressUpdated();
   };
@@ -764,23 +807,62 @@ export const LessonDetailModal: React.FC<LessonDetailModalProps> = ({
     if (!isPre) {
       newProg.status = 'completed';
       newProg.completedAt = new Date().toISOString();
-      StorageService.awardBadge(currentUser.id, lesson.badgeRewardId || `badge-${lesson.chapterNumber}`);
     }
 
     StorageService.saveProgress(newProg);
 
-    // Update user XP & totalCompletedLessons
-    const profiles = StorageService.getStudentProfiles();
-    const stuProfile = profiles.find((p) => p.userId === currentUser.id);
-    if (stuProfile) {
-      const allProg = StorageService.getProgress(currentUser.id);
-      const completedCount = allProg.filter((p) => p.status === 'completed').length;
-      StorageService.updateStudentProfile({
-        ...stuProfile,
-        xp: stuProfile.xp + xpEarned,
-        level: Math.floor((stuProfile.xp + xpEarned) / 300) + 1,
-        totalCompletedLessons: completedCount,
+    if (!isPre) {
+      // Award chapter completion coins (100 base coins + score bonus)
+      const earnedCoins = 100 + score * 10;
+      const gamificationRes = StorageService.awardGamificationRewards(currentUser.id, {
+        coins: earnedCoins,
+        xp: xpEarned,
+        badgeId: lesson.badgeRewardId || `badge-${lesson.chapterNumber}`,
+        lessonChapter: lesson.chapterNumber,
+        isLessonCompleted: true,
       });
+
+      setRewardModalData({
+        rewardType: 'chapter_completed',
+        title: `🏆 ยินดีด้วย! จบบทเรียนที่ ${lesson.chapterNumber} เรียบร้อย!`,
+        subtitle: `${lesson.title} • สอบผ่านและปลดล็อคเหรียญเกียรติยศประจำบท`,
+        earnedCoins,
+        earnedXp: xpEarned,
+        newTotalCoins: gamificationRes.newTotalCoins,
+        newTotalXp: gamificationRes.newTotalXp,
+        newLevel: gamificationRes.newLevel,
+        isLevelUp: gamificationRes.isLevelUp,
+        badgeName: badge?.name || `เหรียญตราประจำบทที่ ${lesson.chapterNumber}`,
+        badgeIcon: badge?.icon || '🏆',
+        classroom: gamificationRes.updatedProfile.classroom || 'ม.1/1',
+        rankInClass: gamificationRes.rankInClass,
+        totalInClass: gamificationRes.totalInClass,
+      });
+      setShowRewardModal(true);
+    } else {
+      // Pre-test completion coins
+      const earnedCoins = 30 + score * 5;
+      const gamificationRes = StorageService.awardGamificationRewards(currentUser.id, {
+        coins: earnedCoins,
+        xp: xpEarned,
+        lessonChapter: lesson.chapterNumber,
+      });
+
+      setRewardModalData({
+        rewardType: 'quiz_passed',
+        title: `📝 ทำแบบทดสอบก่อนเรียนบทที่ ${lesson.chapterNumber} สำเร็จ!`,
+        subtitle: `วัดระดับความรู้เบื้องต้น พร้อมลุยเรียนรู้บทเรียนถัดไป`,
+        earnedCoins,
+        earnedXp: xpEarned,
+        newTotalCoins: gamificationRes.newTotalCoins,
+        newTotalXp: gamificationRes.newTotalXp,
+        newLevel: gamificationRes.newLevel,
+        isLevelUp: gamificationRes.isLevelUp,
+        classroom: gamificationRes.updatedProfile.classroom || 'ม.1/1',
+        rankInClass: gamificationRes.rankInClass,
+        totalInClass: gamificationRes.totalInClass,
+      });
+      setShowRewardModal(true);
     }
 
     onProgressUpdated();
@@ -3081,6 +3163,39 @@ export const LessonDetailModal: React.FC<LessonDetailModalProps> = ({
           </>
         )}
       </div>
+
+      {/* Gamification Celebration Reward Modal */}
+      {showRewardModal && rewardModalData && (
+        <GamificationRewardModal
+          isOpen={showRewardModal}
+          onClose={() => setShowRewardModal(false)}
+          onOpenLeaderboard={() => setShowLeaderboardModal(true)}
+          rewardType={rewardModalData.rewardType}
+          title={rewardModalData.title}
+          subtitle={rewardModalData.subtitle}
+          earnedCoins={rewardModalData.earnedCoins}
+          earnedXp={rewardModalData.earnedXp}
+          newTotalCoins={rewardModalData.newTotalCoins}
+          newTotalXp={rewardModalData.newTotalXp}
+          newLevel={rewardModalData.newLevel}
+          isLevelUp={rewardModalData.isLevelUp}
+          badgeName={rewardModalData.badgeName}
+          badgeIcon={rewardModalData.badgeIcon}
+          classroom={rewardModalData.classroom}
+          rankInClass={rewardModalData.rankInClass}
+          totalInClass={rewardModalData.totalInClass}
+        />
+      )}
+
+      {/* Embedded Leaderboard Modal for viewing rankings immediately */}
+      {showLeaderboardModal && (
+        <LeaderboardModal
+          isOpen={showLeaderboardModal}
+          onClose={() => setShowLeaderboardModal(false)}
+          currentUser={currentUser}
+          currentStudent={currentUser ? StorageService.getStudentProfile(currentUser.id) || null : null}
+        />
+      )}
     </div>
   );
 };
